@@ -6,7 +6,7 @@ import prisma from '../config/db';
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: number };
+      users?: { id: number };
     }
   }
 }
@@ -30,7 +30,7 @@ export const protect = async (
       return res.status(401).json({ message: 'Not authorized, invalid token' });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: decoded.id },
       include: { organization: true } 
     });
@@ -39,7 +39,7 @@ export const protect = async (
       return res.status(401).json({ message: 'Not authorized, user not found' });
     }
 
-    req.user = { id: user.id };
+    req.users = { id: user.id };
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);

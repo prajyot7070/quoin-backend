@@ -14,7 +14,7 @@ export const register = async (req: Request, res: Response): Promise<any> => {
       });
     }
     
-    const userExists = await prisma.user.findUnique({
+    const userExists = await prisma.users.findUnique({
       where: { email },
     });
     
@@ -34,12 +34,12 @@ export const register = async (req: Request, res: Response): Promise<any> => {
       },
     });
     
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        role: 'super-admin', 
+        role: 'super-admin',  //add role types later
         organizationId: organization.id,
       },
     });
@@ -73,7 +73,7 @@ export const login = async (req: Request, res: Response): Promise<any> => {
     }
     
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email },
       include: { organization: true }, 
     });
@@ -108,8 +108,8 @@ export const login = async (req: Request, res: Response): Promise<any> => {
 
 export const getProfile = async (req: Request, res: Response): Promise<any> => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user?.id },
+    const user = await prisma.users.findUnique({
+      where: { id: req.users?.id },
       select: {
         id: true,
         name: true,

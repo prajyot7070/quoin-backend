@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model Users {
   id             Int          @id @default(autoincrement())
   email          String       @unique
   password       String
@@ -23,7 +23,7 @@ model Organization {
   id        Int      @id @default(autoincrement())
   name      String
   email     String
-  users     User[]
+  users     Users[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
