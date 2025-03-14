@@ -15,6 +15,7 @@ model Users {
   role           String       @default("non-developer")
   organizationId Int
   organization   Organization @relation(fields: [organizationId], references: [id])
+  projects       Project[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
@@ -26,4 +27,33 @@ model Organization {
   users     Users[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id           Int           @id @default(autoincrement())
+  name         String
+  description  String?
+  userId       Int
+  user         Users         @relation(fields: [userId], references: [id])
+  connections  Connection[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Connection {
+  id              Int      @id @default(autoincrement())
+  name            String
+  server          String
+  catalog         String
+  schema          String
+  projectId       Int
+  project         Project  @relation(fields: [projectId], references: [id])
+  auth            Json?    // Store Auth as JSON
+  extraCredential Json?    // Store ExtraCredential as JSON
+  extraHeaders    Json?    // Store RequestHeaders as JSON
+  session         Json?    // Store Session as JSON
+  source          String?
+  ssl             Json?    // Store SecureContextOptions as JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
