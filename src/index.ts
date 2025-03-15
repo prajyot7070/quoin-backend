@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3003;
 const app = express();
 
 const corsOptions = {
-  origin: 'http://localhost:3000',
+  origin: 'https://quoin-frontend.vercel.app/',
   credentials: true,
 };
 
