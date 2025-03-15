@@ -13,7 +13,7 @@ dotenv_1.default.config();
 const PORT = process.env.PORT || 3003;
 const app = (0, express_1.default)();
 const corsOptions = {
-    origin: 'https://quoin-frontend.vercel.app/',
+    origin: 'https://quoin-frontend.vercel.app',
     credentials: true,
 };
 app.use((0, cors_1.default)(corsOptions));
