@@ -7,11 +7,11 @@ import cors from 'cors';
 
 dotenv.config();
 
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3004;
 const app = express();
 
 const corsOptions = {
-  origin: 'https://quoin-frontend.vercel.app',
+  origin: ['https://quoin-frontend.vercel.app','http://localhost:3000'],
   credentials: true,
 };
 
