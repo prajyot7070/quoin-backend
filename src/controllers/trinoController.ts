@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import trinoService from '../services/trinoService';
 import { QueryIterator } from 'trino-client';
+import { PrismaClient } from "@prisma/client";
+
+import prisma from '../config/db';
 
 export const testConnection = async (req: Request, res: Response) => {
   const { server, catalog, schema } = req.body;
@@ -20,7 +23,66 @@ export const testConnection = async (req: Request, res: Response) => {
   }
 };
 
-export const createProject = async (req: Request, res: Response) => {
+export const getProject = async (req: Request, res: Response) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    console.log(`Project Id extracted :- ${projectId}`);
+    
+    if (isNaN(projectId)) {
+      res.status(400).json({ message: "Invalid project ID" });
+      return;
+    }
+    
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        connections: {
+          select: {
+            id: true,
+            name: true,
+            server: true,
+            catalog: true,
+            schema: true,
+            source: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
+      }
+    });
+    
+    if (!project) {
+      res.status(404).json({ message: "Project not found" });
+      return;
+    }
+    
+    res.status(200).json({
+      message: "Project retrieved successfully",
+      project: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        user: project.user,
+        connections: project.connections,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Get project failed:', error);
+    res.status(500).json({ 
+      message: "Failed to retrieve project", 
+      error: (error instanceof Error ? error.message : String(error))
+    });
+  }
+};export const createProject = async (req: Request, res: Response) => {
   const { name, description, userId } = req.body;
   try {
     const result = await trinoService.createProject({

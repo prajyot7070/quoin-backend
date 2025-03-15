@@ -8,6 +8,7 @@ router.post('/test-connection', trinoController.testConnection);
 
 // Project routes
 router.post('/projects', trinoController.createProject);
+router.get('/projects/:id', trinoController.getProject); // New route to get project by ID
 
 // Connection routes
 router.post('/connections', trinoController.createConnection);

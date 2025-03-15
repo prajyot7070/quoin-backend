@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import prisma from '../config/db';
 import { generateToken } from '../utils/jwt';
+import jwt from 'jsonwebtoken';
 
 export const register = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -64,30 +65,43 @@ export const register = async (req: Request, res: Response): Promise<any> => {
   }
 };
 
-export const login = async (req: Request, res: Response): Promise<any> => {
+export const login = async (req: Request, res: Response): Promise<void> => {
+  const { email, password } = req.body;
+  
   try {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
-    }
-    
-
+    // Find user by email with proper logging
     const user = await prisma.users.findUnique({
       where: { email },
-      include: { organization: true }, 
+      include: {
+        organization: true,
+        projects: {
+          select: {
+            id: true,
+            name: true,
+            description: true
+          }
+        }
+      }
     });
     
+    console.log('User object:', JSON.stringify(user, null, 2));
+    
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({ message: 'Invalid email or password' });
+      return;
     }
     
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-    
-    if (!isPasswordMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      res.status(401).json({ message: 'Invalid email or password' });
+      return;
     }
     
+    // Generate token
+    const token = generateToken(user.id);  // Use your existing token generator for consistency
+    
+    // Return data in the SAME structure as your register function
     res.status(200).json({
       id: user.id,
       name: user.name,
@@ -96,13 +110,15 @@ export const login = async (req: Request, res: Response): Promise<any> => {
       organization: {
         id: user.organization.id,
         name: user.organization.name,
-        email: user.organization.email,
+        email: user.organization.email
       },
-      token: generateToken(user.id),
+      projects: user.projects,  // Include projects array here
+      token: token
     });
+    
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'An error occurred during login', error: (error as Error).message });
   }
 };
 
@@ -136,3 +152,63 @@ export const getProfile = async (req: Request, res: Response): Promise<any> => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+export const getProject = async (req: Request, res: Response) => {
+  const projectId = parseInt(req.params.id);
+  
+  if (isNaN(projectId)) {
+    return res.status(400).json({ message: "Invalid project ID" });
+  }
+  
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        connections: {
+          select: {
+            id: true,
+            name: true,
+            server: true,
+            catalog: true,
+            schema: true,
+            source: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
+      }
+    });
+    
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    
+    return res.status(200).json({
+      message: "Project retrieved successfully",
+      project: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        user: project.user,
+        connections: project.connections,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Get project failed:', error);
+    return res.status(500).json({ 
+      message: "Failed to retrieve project", 
+      error: (error as Error).message 
+    });
+  }
+};
+
+

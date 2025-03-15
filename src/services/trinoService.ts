@@ -3,7 +3,7 @@ import { TrinoConfig } from "../config/trino";
 import { Trino } from "trino-client";
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+export const prisma = new PrismaClient();
 
 class TrinoService {
   // Test the connection
