@@ -15,7 +15,7 @@ const corsOptions = {
   origin: ['https://quoin-frontend.vercel.app','http://localhost:3000'],
   credentials: true,
 };
-
+//added options
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
