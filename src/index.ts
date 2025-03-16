@@ -14,13 +14,10 @@ const app = express();
 const corsOptions = {
   origin: ['https://quoin-frontend.vercel.app','http://localhost:3000'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  
 };
 //added options
 app.use(cors(corsOptions));
-//app.options('*', cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(express.json());
