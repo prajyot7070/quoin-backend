@@ -18,7 +18,6 @@ const corsOptions = {
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
     allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
-    //hellooo
 };
 //added options
 app.use((0, cors_1.default)(corsOptions));

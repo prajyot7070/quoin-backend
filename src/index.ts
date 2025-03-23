@@ -11,35 +11,17 @@ const PORT = process.env.PORT || 3004;
 const app = express();
 
 //added localhost origin
-// const corsOptions = {
-//   origin: ['https://quoin-frontend.vercel.app','http://localhost:3000'],
-//   credentials: true,
-//   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-//   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
+ const corsOptions = {
+   origin: ['https://quoin-frontend.vercel.app','http://localhost:3000'],
+   credentials: true,
+   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
 
 
-// };
-// //added options
-// app.use(cors(corsOptions));
-// app.options('*', cors(corsOptions));
-const corsOptions: cors.CorsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: string | boolean) => void) => {
-    const allowedOrigins = ['https://quoin-frontend.vercel.app', 'http://localhost:3000'];
-
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true); 
-    } else {
-      callback(new Error('Not allowed by CORS')); 
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
+ };
+ //added options
+ app.use(cors(corsOptions));
+ app.options('*', cors(corsOptions));
 
 
 // Middleware
