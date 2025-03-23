@@ -9,6 +9,9 @@ class TrinoService {
   // Test the connection
   async testConnection(connectionData: TrinoConfig) {
     try {
+      if (!connectionData.extraHeaders) {
+        connectionData.extraHeaders['X-Trino-User'] = 'trino_user';
+      }
       const client = await createTrinoClient(connectionData);
       const query = 'SELECT 1 AS success';
       const result = await client.query(query);

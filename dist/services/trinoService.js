@@ -18,6 +18,9 @@ class TrinoService {
     testConnection(connectionData) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                if (!connectionData.extraHeaders) {
+                    connectionData.extraHeaders['X-Trino-User'] = 'trino_user';
+                }
                 const client = yield (0, trino_1.createTrinoClient)(connectionData);
                 const query = 'SELECT 1 AS success';
                 const result = yield client.query(query);
