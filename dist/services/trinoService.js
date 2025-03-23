@@ -18,6 +18,11 @@ class TrinoService {
     testConnection(connectionData) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                // Initialize extraHeaders if it doesn't exist
+                if (!connectionData.extraHeaders) {
+                    connectionData.extraHeaders = {};
+                }
+                // Now it's safe to set the property
                 connectionData.extraHeaders['X-Trino-User'] = 'trino_user';
                 const client = yield (0, trino_1.createTrinoClient)(connectionData);
                 const query = 'SELECT 1 AS success';

@@ -9,8 +9,14 @@ class TrinoService {
   // Test the connection
   async testConnection(connectionData: TrinoConfig) {
     try {
+      // Initialize extraHeaders if it doesn't exist
+      if (!connectionData.extraHeaders) {
+        connectionData.extraHeaders = {};
+      }
+      
+      // Now it's safe to set the property
       connectionData.extraHeaders['X-Trino-User'] = 'trino_user';
-
+      
       const client = await createTrinoClient(connectionData);
       const query = 'SELECT 1 AS success';
       const result = await client.query(query);
@@ -19,7 +25,7 @@ class TrinoService {
       console.error('Connection test failed:', error);
       return { success: false, error: (error as Error).message };
     }
-  }
+  }  
 
   // Save a new project
   async createProject(projectData: { name: string; description?: string; userId: number }) {
