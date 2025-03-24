@@ -180,13 +180,13 @@ const executeQuery = (req, res) => __awaiter(void 0, void 0, void 0, function* (
                 // Just return whatever we got
                 res.status(200).json({
                     message: "Query executed successfully",
-                    result: result,
+                    //result: result,
                     data: result.result
                 });
             }
             res.status(200).json({
                 message: "Query executed successfully",
-                result: result,
+                //result: result, 
                 data: rows
             });
         }

@@ -143,14 +143,14 @@ export const executeQuery = async (req: Request, res: Response) => {
         // Just return whatever we got
         res.status(200).json({ 
           message: "Query executed successfully", 
-          result: result,
+          //result: result,
           data: result.result 
         });
       }
       
       res.status(200).json({ 
         message: "Query executed successfully", 
-        result: result, 
+        //result: result, 
         data: rows 
       });
     } else {
