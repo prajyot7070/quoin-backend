@@ -125,15 +125,46 @@ export const executeQuery = async (req: Request, res: Response) => {
   try {
     const result = await trinoService.executeQuery(connectionId, query);
     const rows = [];
-    for await (const row of result.result) {
-      rows.push(row);
-    }
-    if (result.success) {
-      res.status(200).json({ message: "Query executed successfully", result: result, data: rows });
+    
+    // Add defensive checks
+    if (result.success && result.result) {
+      if (typeof result.result[Symbol.asyncIterator] === 'function') {
+        // If it's an async iterable as expected
+        for await (const row of result.result) {
+          rows.push(row);
+        }
+      } else if (Array.isArray(result.result)) {
+        // If it's already an array
+        rows.push(...result.result);
+      } else if (result.result.rows) {
+        // Some clients return data in a 'rows' property
+        rows.push(...result.result.rows);
+      } else {
+        // Just return whatever we got
+        res.status(200).json({ 
+          message: "Query executed successfully", 
+          result: result,
+          data: result.result 
+        });
+      }
+      
+      res.status(200).json({ 
+        message: "Query executed successfully", 
+        result: result, 
+        data: rows 
+      });
     } else {
-      res.status(500).json({ message: "Failed to execute query", error: result });
+      res.status(500).json({ 
+        message: "Failed to execute query", 
+        error: result 
+      });
     }
   } catch (error) {
-    res.status(500).json({ message: "An unexpected error occurred", error: (error as Error).message });
+    console.error('Execute query error:', error);
+    res.status(500).json({ 
+      message: "An unexpected error occurred", 
+      error: (error as Error).message,
+      stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
+    });
   }
 };

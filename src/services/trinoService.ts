@@ -99,6 +99,12 @@ class TrinoService {
       
       // Execute the query
       const result = await client.query(query);
+      console.log(`Query result type : `, typeof result);
+      console.log('Query result structure:', JSON.stringify(result, (key, value) => {
+      if (typeof value === 'function') return 'function';
+      if (value && typeof value === 'object' && Symbol.asyncIterator in value) return 'asyncIterable';
+      return value;
+      }, 2));
       return { success: true, result };
     } catch (error) {
       console.error('Execute query failed:', error);

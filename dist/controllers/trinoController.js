@@ -148,30 +148,62 @@ const executeQuery = (req, res) => __awaiter(void 0, void 0, void 0, function* (
     try {
         const result = yield trinoService_1.default.executeQuery(connectionId, query);
         const rows = [];
-        try {
-            for (var _d = true, _e = __asyncValues(result.result), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
-                _c = _f.value;
-                _d = false;
-                const row = _c;
-                rows.push(row);
+        // Add defensive checks
+        if (result.success && result.result) {
+            if (typeof result.result[Symbol.asyncIterator] === 'function') {
+                try {
+                    // If it's an async iterable as expected
+                    for (var _d = true, _e = __asyncValues(result.result), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
+                        _c = _f.value;
+                        _d = false;
+                        const row = _c;
+                        rows.push(row);
+                    }
+                }
+                catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                finally {
+                    try {
+                        if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
+                    }
+                    finally { if (e_1) throw e_1.error; }
+                }
             }
-        }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
-        finally {
-            try {
-                if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
+            else if (Array.isArray(result.result)) {
+                // If it's already an array
+                rows.push(...result.result);
             }
-            finally { if (e_1) throw e_1.error; }
-        }
-        if (result.success) {
-            res.status(200).json({ message: "Query executed successfully", result: result, data: rows });
+            else if (result.result.rows) {
+                // Some clients return data in a 'rows' property
+                rows.push(...result.result.rows);
+            }
+            else {
+                // Just return whatever we got
+                res.status(200).json({
+                    message: "Query executed successfully",
+                    result: result,
+                    data: result.result
+                });
+            }
+            res.status(200).json({
+                message: "Query executed successfully",
+                result: result,
+                data: rows
+            });
         }
         else {
-            res.status(500).json({ message: "Failed to execute query", error: result });
+            res.status(500).json({
+                message: "Failed to execute query",
+                error: result
+            });
         }
     }
     catch (error) {
-        res.status(500).json({ message: "An unexpected error occurred", error: error.message });
+        console.error('Execute query error:', error);
+        res.status(500).json({
+            message: "An unexpected error occurred",
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 exports.executeQuery = executeQuery;

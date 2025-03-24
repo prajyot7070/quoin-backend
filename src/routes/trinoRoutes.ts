@@ -15,5 +15,4 @@ router.post('/connections', trinoController.createConnection);
 
 // Query execution route
 router.post('/execute', trinoController.executeQuery);
-
 export default router;
