@@ -88,14 +88,17 @@ class TrinoService {
       }
       
       const connection = connectionResult.connection;
-      
-      // Create a client with the connection details
-      const client = await createTrinoClient({
+      const connectionConfig: TrinoConfig = {
         server: connection.server,
         catalog: connection.catalog,
         schema: connection.schema,
-        source: connection.source || undefined
-      });
+        source: connection.source || undefined,
+        extraHeaders: {
+          'X-Trino-User': 'trino_user',
+        }
+      } 
+      // Create a client with the connection details
+      const client = await createTrinoClient(connectionConfig);
       
       // Execute the query
       const result = await client.query(query);

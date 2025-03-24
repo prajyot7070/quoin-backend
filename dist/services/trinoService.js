@@ -93,13 +93,17 @@ class TrinoService {
                     return connectionResult;
                 }
                 const connection = connectionResult.connection;
-                // Create a client with the connection details
-                const client = yield (0, trino_1.createTrinoClient)({
+                const connectionConfig = {
                     server: connection.server,
                     catalog: connection.catalog,
                     schema: connection.schema,
-                    source: connection.source || undefined
-                });
+                    source: connection.source || undefined,
+                    extraHeaders: {
+                        'X-Trino-User': 'trino_user',
+                    }
+                };
+                // Create a client with the connection details
+                const client = yield (0, trino_1.createTrinoClient)(connectionConfig);
                 // Execute the query
                 const result = yield client.query(query);
                 console.log(`Query result type : `, typeof result);
