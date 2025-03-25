@@ -8,19 +8,26 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __asyncValues = (this && this.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDatabaseSchema = getDatabaseSchema;
-exports.formatSchemaForPrompt = formatSchemaForPrompt;
 const trinoService_1 = __importDefault(require("../services/trinoService"));
 /**
  * Gets database schema information from Trino
- * Processes the response from trino-client
+ * Returns both raw and processed schema rows
  */
 function getDatabaseSchema(connectionId, catalog) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a, e_1, _b, _c;
         try {
             const query = `
             SELECT
@@ -39,78 +46,48 @@ function getDatabaseSchema(connectionId, catalog) {
             ORDER BY
                 t.table_schema, t.table_name, c.ordinal_position
         `;
-            const queryResponse = yield trinoService_1.default.executeQuery(connectionId, query);
-            if (!queryResponse.success) {
-                console.error("Failed to get schema:", queryResponse.error);
-                return [];
-            }
-            const queryResult = queryResponse.result;
-            const formattedData = [];
-            // Check if we have valid data
-            if (Array.isArray(queryResult) && queryResult.length > 0 && queryResult[0].data) {
-                const data = queryResult[0].data;
-                // Process each row into a structured object
-                for (let i = 0; i < data.length; i++) {
-                    const row = data[i];
-                    if (Array.isArray(row) && row.length >= 4) {
-                        formattedData.push({
-                            table_schema: row[0],
-                            table_name: row[1],
-                            column_name: row[2],
-                            data_type: row[3]
-                        });
+            const result = yield trinoService_1.default.executeQuery(connectionId, query);
+            const processedRows = [];
+            let rawData = null;
+            if (result.success && result.result) {
+                // Check if the result is an async iterable
+                if (typeof result.result[Symbol.asyncIterator] === 'function') {
+                    console.log('Processing async iterable...');
+                    try {
+                        for (var _d = true, _e = __asyncValues(result.result), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
+                            _c = _f.value;
+                            _d = false;
+                            const row = _c;
+                            // Capture the first raw row
+                            if (!rawData) {
+                                rawData = row;
+                                //console.log('Raw row:', row);
+                            }
+                            // Process rows
+                            if (row.data && Array.isArray(row.data)) {
+                                processedRows.push({
+                                    table_schema: row.data[0],
+                                    table_name: row.data[1],
+                                    column_name: row.data[2],
+                                    data_type: row.data[3]
+                                });
+                            }
+                        }
+                    }
+                    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+                    finally {
+                        try {
+                            if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
+                        }
+                        finally { if (e_1) throw e_1.error; }
                     }
                 }
             }
-            console.log(`Processed ${formattedData.length} schema rows`);
-            return formattedData;
+            return { rawData, processedRows };
         }
         catch (error) {
             console.error("Error in getDatabaseSchema:", error);
-            return [];
+            return { rawData: null, processedRows: [] };
         }
     });
-}
-/**
- * Formats schema information into a structured, readable format
- * Organizes columns by table for better clarity in AI prompts
- */
-function formatSchemaForPrompt(schemaInfo) {
-    try {
-        if (!Array.isArray(schemaInfo) || schemaInfo.length === 0) {
-            return "No schema information available.";
-        }
-        // Group columns by table
-        const tables = {};
-        schemaInfo.forEach((row) => {
-            if (!row.table_schema || !row.table_name || !row.column_name || !row.data_type) {
-                return; // Skip invalid rows
-            }
-            const tableName = `${row.table_schema}.${row.table_name}`;
-            if (!tables[tableName]) {
-                tables[tableName] = { columns: [] };
-            }
-            tables[tableName].columns.push(`${row.column_name} (${row.data_type})`);
-        });
-        // Check if we found any valid tables
-        if (Object.keys(tables).length === 0) {
-            return "No tables found in the schema.";
-        }
-        // Format as a structured list for better readability
-        let formattedSchema = "Available tables and their columns:\n\n";
-        for (const tableName in tables) {
-            formattedSchema += `TABLE: ${tableName}\n`;
-            formattedSchema += `COLUMNS: \n`;
-            // Add each column on a new line with proper indentation
-            tables[tableName].columns.forEach(column => {
-                formattedSchema += `  - ${column}\n`;
-            });
-            formattedSchema += "\n";
-        }
-        return formattedSchema;
-    }
-    catch (error) {
-        console.error("Error in formatSchemaForPrompt:", error);
-        return "Error formatting schema information.";
-    }
 }

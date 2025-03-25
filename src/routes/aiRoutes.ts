@@ -8,7 +8,7 @@ const router = Router();
 router.post('/generate', aiController.generateQuery);
 
 // Generate and execute query route
-router.post('/generate-execute', aiController.generateAndExecuteQuery);
+//router.post('/generate-execute', aiController.generateAndExecuteQuery);
 
 export default router;
 

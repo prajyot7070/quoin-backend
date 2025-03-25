@@ -39,5 +39,5 @@ const router = (0, express_1.Router)();
 // Generate query route
 router.post('/generate', aiController.generateQuery);
 // Generate and execute query route
-router.post('/generate-execute', aiController.generateAndExecuteQuery);
+//router.post('/generate-execute', aiController.generateAndExecuteQuery);
 exports.default = router;
