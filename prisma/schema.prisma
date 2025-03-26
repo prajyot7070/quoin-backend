@@ -7,53 +7,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
-  id             Int          @id @default(autoincrement())
-  email          String       @unique
-  password       String
-  name           String?
-  role           String       @default("non-developer")
-  organizationId Int
+enum UserRole {
+  ADMIN
+  DEVELOPER
+  VIEWER
+}
+
+model User {
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  password               String
+  name                   String?
+  organizationId         String
+  organization           Organization            @relation(fields: [organizationId], references: [id])
+  organizationMembership OrganizationMembership?
+  projects               Project[]
+  executedQueries        ExecutedQuery[]
+  queryFeedbacks         QueryFeedback[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  deletedAt              DateTime?
+  SavedQuery             SavedQuery[]
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id])
+  organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
-  projects       Project[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  role           UserRole     @default(VIEWER)
+  joinedAt       DateTime     @default(now())
+  deletedAt      DateTime?
 }
 
 model Organization {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String
-  users     Users[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String                   @id @default(cuid())
+  name        String
+  email       String                   @unique
+  users       User[]
+  memberships OrganizationMembership[]
+  projects    Project[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  deletedAt   DateTime?
 }
 
 model Project {
-  id           Int           @id @default(autoincrement())
-  name         String
-  description  String?
-  userId       Int
-  user         Users         @relation(fields: [userId], references: [id])
-  connections  Connection[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id              String          @id @default(cuid())
+  name            String
+  description     String?
+  userId          String
+  user            User            @relation(fields: [userId], references: [id])
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+  connections     Connection[]
+  savedQueries    SavedQuery[]
+  executedQueries ExecutedQuery[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
 }
 
 model Connection {
-  id              Int      @id @default(autoincrement())
+  id              String          @id @default(cuid())
   name            String
   server          String
   catalog         String
   schema          String
-  projectId       Int
-  project         Project  @relation(fields: [projectId], references: [id])
-  auth            Json?    // Store Auth as JSON
-  extraCredential Json?    // Store ExtraCredential as JSON
-  extraHeaders    Json?    // Store RequestHeaders as JSON
-  session         Json?    // Store Session as JSON
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id])
+  auth            Json?
+  extraCredential Json?
+  extraHeaders    Json?
+  session         Json?
   source          String?
-  ssl             Json?    // Store SecureContextOptions as JSON
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  ssl             Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+  SavedQuery      SavedQuery[]
+  ExecutedQuery   ExecutedQuery[]
+}
+
+model SavedQuery {
+  id           String          @id @default(cuid())
+  name         String
+  description  String?
+  projectId    String
+  project      Project         @relation(fields: [projectId], references: [id])
+  connectionId String?
+  connection   Connection?     @relation(fields: [connectionId], references: [id])
+  userId       String
+  user         User            @relation(fields: [userId], references: [id])
+  feedbacks    QueryFeedback[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  deletedAt    DateTime?
+}
+
+model ExecutedQuery {
+  id           String          @id @default(cuid())
+  query        String
+  userId       String
+  user         User            @relation(fields: [userId], references: [id])
+  projectId    String
+  project      Project         @relation(fields: [projectId], references: [id])
+  connectionId String
+  connection   Connection      @relation(fields: [connectionId], references: [id])
+  feedbacks    QueryFeedback[]
+  executedAt   DateTime        @default(now())
+  duration     Float?
+  status       String
+  error        String?
+  resultSize   Int?
+}
+
+model QueryFeedback {
+  id              String         @id @default(cuid())
+  executedQueryId String?
+  executedQuery   ExecutedQuery? @relation(fields: [executedQueryId], references: [id])
+  savedQueryId    String?
+  savedQuery      SavedQuery?    @relation(fields: [savedQueryId], references: [id])
+  rawQuery        String?
+  rating          Int
+  text            String?
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  createdAt       DateTime       @default(now())
 }

@@ -41,7 +41,7 @@ export const generateQuery = async (req: Request, res: Response, next?: NextFunc
 7.  ONLY the SQL query without any explanation, markdown formatting, or comments
 IMPORTANT: Use ONLY the exact table and column names provided in the schema details. Use <catalog>.<schema>.tablename when executing queries on tables`    
     
-    console.log('systemPrompt:', systemPrompt);
+    //console.log('systemPrompt:', systemPrompt);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await model.generateContent([
       { text: systemPrompt },
