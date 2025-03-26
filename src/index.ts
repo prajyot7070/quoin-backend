@@ -1,9 +1,11 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes';
-import trinoRoutes from './routes/trinoRoutes';
-import aiRoutes from './routes/aiRoutes';
 import cors from 'cors';
+import organizationRoutes from './routes/organizationRoutes';
+import projectRoutes from './routes/projectRoutes';
+import aiRoutes from './routes/aiRoutes';
+import queryRoutes from './routes/queryRoutes';
 
 dotenv.config();
 
@@ -35,11 +37,17 @@ app.get('/', (req, res) => {
 // Auth routes
 app.use('/api/auth', authRoutes);
 
-// Trino Routes
-app.use('/api/trino', trinoRoutes);
+// Organization routes
+app.use('/api/organizations', organizationRoutes);
 
-// AI Routes
+// Project routes
+app.use('/api/projects', projectRoutes);
+
+// AI routes
 app.use('/api/ai', aiRoutes);
+
+// Query routes
+app.use('/api/queries', queryRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running at ${PORT}!`);

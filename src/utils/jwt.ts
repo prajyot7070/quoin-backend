@@ -5,7 +5,7 @@ dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
-export const generateToken = (userId: number): string => {
+export const generateToken = (userId: string): string => {
   return jwt.sign({ id: userId }, JWT_SECRET, {
     expiresIn: '30d',
   });

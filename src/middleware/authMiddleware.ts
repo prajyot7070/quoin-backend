@@ -1,12 +1,11 @@
-
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
-import prisma from '../config/db'; 
+import prisma from '../config/db';
 
 declare global {
   namespace Express {
     interface Request {
-      users?: { id: number };
+      users?: { id: string }; // Changed to string to match CUID
     }
   }
 }
@@ -22,23 +21,23 @@ export const protect = async (
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ message: 'Not authorized, no token' });
     }
-
+    
     const token = authHeader.split(' ')[1];
     const decoded = verifyToken(token);
-
+    
     if (!decoded) {
       return res.status(401).json({ message: 'Not authorized, invalid token' });
     }
-
-    const user = await prisma.users.findUnique({
+    
+    const user = await prisma.user.findUnique({ // Changed from users to user
       where: { id: decoded.id },
-      include: { organization: true } 
+      include: { organization: true }
     });
-
+    
     if (!user) {
       return res.status(401).json({ message: 'Not authorized, user not found' });
     }
-
+    
     req.users = { id: user.id };
     next();
   } catch (error) {
