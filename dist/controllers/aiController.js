@@ -17,6 +17,8 @@ exports.refineQuery = refineQuery;
 const generative_ai_1 = require("@google/generative-ai");
 const db_1 = __importDefault(require("../config/db"));
 const sanitizeSqlQuery_1 = require("../utils/sanitizeSqlQuery");
+const trino_1 = require("../config/trino");
+const schemaformater_1 = require("../utils/schemaformater");
 const API_KEY = process.env.GEMINI_API_KEY || '';
 const genAI = new generative_ai_1.GoogleGenerativeAI(API_KEY);
 // Base context for generating good database queries
@@ -121,51 +123,69 @@ function generateQuery(req, res) {
                     organizationId: connection.project.organizationId
                 }
             });
-            // Fetch schema information directly using Prisma
-            let tableInfo = [];
+            //query to get Database schema
+            const queryDatabaseSchema = `
+            SELECT
+                t.table_schema,
+                t.table_name,
+                c.column_name,
+                c.data_type
+            FROM
+                ${connection.catalog}.information_schema.tables AS t
+            JOIN
+                ${connection.catalog}.information_schema.columns AS c
+            ON
+                t.table_schema = c.table_schema AND t.table_name = c.table_name
+            WHERE
+                t.table_schema NOT IN ('information_schema', 'pg_catalog') AND t.table_type = 'BASE TABLE'
+            ORDER BY
+                t.table_schema, t.table_name, c.ordinal_position`;
+            const trinoConfig = {
+                server: connection.server,
+                catalog: connection.catalog,
+                schema: connection.schema,
+                source: connection.source || undefined,
+                extraHeaders: {
+                    'X-Trino-User': 'trino_user',
+                }
+            };
+            const client = yield (0, trino_1.createTrinoClient)(trinoConfig);
+            let processedRows = [];
             try {
-                // For Prisma direct database access, we'll use a different approach based on connection type
-                // This example assumes a PostgreSQL-compatible database
-                if (connection.source === 'postgres' || connection.source === 'neon' || connection.source === 'supabase') {
-                    // Get tables in the schema
-                    const tables = yield db_1.default.$queryRaw `
-          SELECT table_name 
-          FROM information_schema.tables 
-          WHERE table_schema = ${connection.schema}
-          AND table_type = 'BASE TABLE'
-        `;
-                    // Get columns for each table
-                    for (const table of Array.isArray(tables) ? tables : [tables]) {
-                        const columns = yield db_1.default.$queryRaw `
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns 
-            WHERE table_schema = ${connection.schema} 
-            AND table_name = ${table.table_name}
-            ORDER BY ordinal_position
-          `;
-                        tableInfo.push({
-                            table_name: table.table_name,
-                            columns: columns
-                        });
-                    }
-                }
-                else {
-                    // For other connection types, we might need to implement alternative approaches
-                    // For now, just note that we don't have schema info
-                    tableInfo = [{
-                            message: "Schema information not available for this connection type via Prisma directly",
-                            note: "AI will generate based on standard naming conventions"
-                        }];
-                }
+                const resultIterator = yield client.query(queryDatabaseSchema);
+                processedRows = yield (0, schemaformater_1.processTrinoSchemaResponse)(resultIterator);
+                console.log(`Fetched schema for ${processedRows.length}`);
             }
             catch (error) {
-                console.error('Error fetching schema:', error);
-                tableInfo = [{
-                        error: "Failed to fetch schema information",
-                        message: error.message
-                    }];
+                console.error('Error processing query results:', error);
+                throw error;
             }
-            console.log(`Fetched schema for ${tableInfo.length} tables`);
+            //        
+            //        if (query_response.success && query_response.result) {
+            //            // Check if the query_response.is an async iterable
+            //            if (typeof query_response.result[Symbol.asyncIterator] === 'function') {
+            //                console.log('Processing async iterable...');
+            //                for await (const row of query_response.result) {
+            //                    // Capture the first raw row
+            //                    if (!rawData) {
+            //                        rawData = row;
+            //                        //console.log('Raw row:', row);
+            //                    }
+            //                    
+            //                    // Process rows
+            //                    if (row.data && Array.isArray(row.data)) {
+            //                        processedRows.push({
+            //                            table_schema: row.data[0],
+            //                            table_name: row.data[1],
+            //                            column_name: row.data[2],
+            //                            data_type: row.data[3]
+            //                        });
+            //                    }
+            //                }
+            //            }
+            //        }
+            console.log(`Fetched schema for ${processedRows.length} tables`);
+            const schemaContext = processedRows.map(row => `${row.table_schema},${row.table_name},${row.column_name},${row.data_type}`).join('\n');
             // Build the complete context based on filters and user role
             let completeContext = baseContext;
             // Add dialect-specific context
@@ -200,13 +220,14 @@ function generateQuery(req, res) {
 - Catalog: ${connection.catalog}
 - Schema: ${connection.schema}
 - Source Type: ${connection.source}
-- Tables and Columns: ${JSON.stringify(tableInfo, null, 2)}
+- Tables and Columns: \ntable_schema,table_name,column_name,data_type \n${schemaContext}
 
 EVALUATION CRITERIA:
 1. Accuracy: Generated statements must be syntactically correct and semantically appropriate
 2. Dialect-specific features: Use specialized functions for this dialect (${dialect})
 3. Performance: Optimize for execution speed and resource efficiency
 4. Storage efficiency: Consider data organization and compression when creating tables`;
+            console.log(`Complete Context :- ${completeContext}`);
             // Generate the query
             const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
             const result = yield model.generateContent([

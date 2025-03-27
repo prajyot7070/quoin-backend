@@ -82,7 +82,7 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
           ssl: connection.ssl as Record<string, any> || {},
           source: connection.source
         };
-        
+        console.error(`connectionConfig :- ${trinoConfig}`);
         const client = await createTrinoClient(trinoConfig);
         const result = await client.query(query);
         
@@ -94,7 +94,9 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
           }
         }
         queryResult = { rows };
+        if (rows) { console.error(`Executed!!!`); }
         resultSize = rows.length;
+        if (resultSize) console.error(`resultSize :- ${resultSize}`);
       } 
       else if (connection.source === 'postgres' || connection.source === 'neon') {
         const auth = connection.auth as Record<string, any>;
@@ -162,6 +164,7 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
     });
     
     if (error) {
+      console.error(`${error}`)
       res.status(400).json({
         success: false,
         message: "Query execution failed",

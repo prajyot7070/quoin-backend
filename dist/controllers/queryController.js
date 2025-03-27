@@ -88,11 +88,14 @@ function executeQuery(req, res) {
                         server: connection.server,
                         catalog: connection.catalog,
                         schema: connection.schema,
-                        extraHeaders: connection.extraHeaders || {},
+                        extraHeaders: {
+                            'X-Trino-User': 'trino_user',
+                        },
                         auth: connection.auth || {},
                         ssl: connection.ssl || {},
                         source: connection.source
                     };
+                    console.error(`connectionConfig :- ${trinoConfig}`);
                     const client = yield (0, trino_1.createTrinoClient)(trinoConfig);
                     const result = yield client.query(query);
                     // Handle Trino's iterator result format
@@ -115,7 +118,12 @@ function executeQuery(req, res) {
                         }
                     }
                     queryResult = { rows };
+                    if (rows) {
+                        console.error(`Executed!!!`);
+                    }
                     resultSize = rows.length;
+                    if (resultSize)
+                        console.error(`resultSize :- ${resultSize}`);
                 }
                 else if (connection.source === 'postgres' || connection.source === 'neon') {
                     const auth = connection.auth;
@@ -176,6 +184,7 @@ function executeQuery(req, res) {
                 }
             });
             if (error) {
+                console.error(`${error}`);
                 res.status(400).json({
                     success: false,
                     message: "Query execution failed",
