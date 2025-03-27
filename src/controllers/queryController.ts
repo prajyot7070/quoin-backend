@@ -75,7 +75,9 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
           server: connection.server,
           catalog: connection.catalog,
           schema: connection.schema,
-          extraHeaders: connection.extraHeaders as Record<string, string> || {},
+          extraHeaders: {
+            'X-Trino-User': 'trino_user',
+          },
           auth: connection.auth as Record<string, any> || {},
           ssl: connection.ssl as Record<string, any> || {},
           source: connection.source
