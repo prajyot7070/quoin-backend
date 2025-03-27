@@ -10,6 +10,6 @@ const router = express_1.default.Router();
 // Apply authentication middleware to all routes
 router.use(authMiddleware_1.protect);
 // AI query generation routes
-router.post('/generate-query', aiController_1.generateQuery);
-router.post('/refine-query', aiController_1.refineQuery);
+router.post('/generate-query', authMiddleware_1.protect, aiController_1.generateQuery);
+router.post('/refine-query', authMiddleware_1.protect, aiController_1.refineQuery);
 exports.default = router;

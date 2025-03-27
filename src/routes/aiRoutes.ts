@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(protect);
 
 // AI query generation routes
-router.post('/generate-query', generateQuery);
-router.post('/refine-query', refineQuery);
+router.post('/generate-query', protect, generateQuery);
+router.post('/refine-query',protect , refineQuery);
 
 export default router;

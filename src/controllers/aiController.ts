@@ -81,8 +81,10 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
       connectionId, 
       dialect = 'trino',
       optimizeForOLAP = false,
-      userId
+      //userId
     } = req.body;
+    const userId = req.users?.id;
+
     
     // Validate request data
     if (!prompt || !connectionId) {
@@ -223,6 +225,11 @@ EVALUATION CRITERIA:
     
     const query = result.response.text();
     
+    if (!userId) {
+      res.status(401).json({message: "Unauthorized : userId not sent"});
+      return;
+    }
+
     // Log the executed query
     await prisma.executedQuery.create({
       data: {

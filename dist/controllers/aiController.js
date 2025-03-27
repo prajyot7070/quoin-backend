@@ -83,8 +83,12 @@ DO NOT generate any queries that modify the database (INSERT, UPDATE, DELETE, DR
 Generate only SELECT statements that read data.`;
 function generateQuery(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
+        var _a;
         try {
-            const { prompt, connectionId, dialect = 'trino', optimizeForOLAP = false, userId } = req.body;
+            const { prompt, connectionId, dialect = 'trino', optimizeForOLAP = false,
+            //userId
+             } = req.body;
+            const userId = (_a = req.users) === null || _a === void 0 ? void 0 : _a.id;
             // Validate request data
             if (!prompt || !connectionId) {
                 res.status(400).json({
@@ -210,6 +214,10 @@ EVALUATION CRITERIA:
                 { text: prompt }
             ]);
             const query = result.response.text();
+            if (!userId) {
+                res.status(401).json({ message: "Unauthorized : userId not sent" });
+                return;
+            }
             // Log the executed query
             yield db_1.default.executedQuery.create({
                 data: {

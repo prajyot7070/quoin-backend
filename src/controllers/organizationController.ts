@@ -12,7 +12,11 @@ export const getOrganizationMembers = async (req: Request, res: Response): Promi
        deletedAt: null
      },
      include: {
-       organizationMembership: true,
+       organizationMembership: {
+          where: {
+            organizationId: organizationId
+          }
+        },
        projects: {
          select: {
            id: true,
@@ -22,14 +26,18 @@ export const getOrganizationMembers = async (req: Request, res: Response): Promi
      }
    });
    
-   const formattedMembers = members.map(member => ({
-     id: member.id,
-     name: member.name,
-     email: member.email,
-     role: member.organizationMembership?.role || 'VIEWER',
-     joinedAt: member.organizationMembership?.joinedAt || member.createdAt,
-     projects: member.projects
-   }));
+   const formattedMembers = members.map(member => {
+      // Assuming each user has only one membership in this organization
+      const membership = member.organizationMembership[0];
+      return {
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        role: membership?.role || 'VIEWER',
+        joinedAt: membership?.joinedAt || member.createdAt,
+        projects: member.projects
+      };
+    });
    
    res.status(200).json({ members: formattedMembers });
  } catch (error) {

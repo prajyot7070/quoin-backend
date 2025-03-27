@@ -24,7 +24,11 @@ const getOrganizationMembers = (req, res) => __awaiter(void 0, void 0, void 0, f
                 deletedAt: null
             },
             include: {
-                organizationMembership: true,
+                organizationMembership: {
+                    where: {
+                        organizationId: organizationId
+                    }
+                },
                 projects: {
                     select: {
                         id: true,
@@ -34,15 +38,16 @@ const getOrganizationMembers = (req, res) => __awaiter(void 0, void 0, void 0, f
             }
         });
         const formattedMembers = members.map(member => {
-            var _a, _b;
-            return ({
+            // Assuming each user has only one membership in this organization
+            const membership = member.organizationMembership[0];
+            return {
                 id: member.id,
                 name: member.name,
                 email: member.email,
-                role: ((_a = member.organizationMembership) === null || _a === void 0 ? void 0 : _a.role) || 'VIEWER',
-                joinedAt: ((_b = member.organizationMembership) === null || _b === void 0 ? void 0 : _b.joinedAt) || member.createdAt,
+                role: (membership === null || membership === void 0 ? void 0 : membership.role) || 'VIEWER',
+                joinedAt: (membership === null || membership === void 0 ? void 0 : membership.joinedAt) || member.createdAt,
                 projects: member.projects
-            });
+            };
         });
         res.status(200).json({ members: formattedMembers });
     }
