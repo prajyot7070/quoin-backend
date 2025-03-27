@@ -6,6 +6,7 @@ import { createOrganization } from '../controllers/authController';
 
 const router = express.Router();
 
+//routes
 router.post('/register', register);
 router.post('/login', login);
 router.get('/profile', protect, getProfile);
