@@ -10,7 +10,7 @@ const router = express.Router();
 router.post('/register', register);
 router.post('/login', login);
 router.get('/profile', protect, getProfile);
-router.post('/organizations/:organizationId/invite', protect, inviteUser);
-router.post('/organizations', protect, createOrganization);
+//router.post('/organizations/:organizationId/invite', protect, inviteUser);
+//router.post('/organizations', protect, createOrganization);
 
 export default router;
