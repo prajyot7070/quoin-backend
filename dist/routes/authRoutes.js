@@ -9,6 +9,7 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const authController_2 = require("../controllers/authController");
 const authController_3 = require("../controllers/authController");
 const router = express_1.default.Router();
+//routes
 router.post('/register', authController_1.register);
 router.post('/login', authController_1.login);
 router.get('/profile', authMiddleware_1.protect, authController_1.getProfile);

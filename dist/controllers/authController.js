@@ -195,17 +195,7 @@ const inviteUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
             where: { email }
         });
         if (existingUser) {
-            // If user exists but was previously removed (has deletedAt set)
-            if (existingUser.deletedAt) {
-                // Reactivate the user
-                yield db_1.default.user.update({
-                    where: { id: existingUser.id },
-                    data: {
-                        deletedAt: null,
-                        organizationId
-                    }
-                });
-            }
+            // If user exists 
             // Check if membership exists
             const existingMembership = yield db_1.default.organizationMembership.findFirst({
                 where: {
@@ -239,50 +229,25 @@ const inviteUser = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                         role: role
                     }
                 });
-            }
-            res.status(200).json({
-                success: true,
-                message: 'User added to organization',
-                user: {
-                    id: existingUser.id,
-                    name: existingUser.name,
-                    email: existingUser.email
-                }
-            });
-            return;
-        }
-        // If user doesn't exist, create new user with organization
-        const password = Math.random().toString(36).slice(-8);
-        const salt = yield bcrypt_1.default.genSalt(10);
-        const hashedPassword = yield bcrypt_1.default.hash(password, salt);
-        const user = yield db_1.default.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-                organizationId,
-                organizationMembership: {
-                    create: {
-                        organizationId,
-                        role: role
+                res.status(200).json({
+                    success: true,
+                    message: 'User added to organization',
+                    user: {
+                        id: existingUser.id,
+                        name: existingUser.name,
+                        email: existingUser.email
                     }
-                }
-            },
-            include: {
-                organization: true
+                });
+                return;
             }
-        });
-        res.status(201).json({
-            success: true,
-            message: 'User invited successfully',
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                organization: user.organization.name
-            },
-            password: password
-        });
+        }
+        else {
+            //User does not exist, return error
+            res.status(404).json({
+                success: true,
+                message: 'User does not exist',
+            });
+        }
     }
     catch (error) {
         console.error('Invite user error:', error);

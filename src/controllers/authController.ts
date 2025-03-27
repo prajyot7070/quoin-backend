@@ -199,17 +199,7 @@ export const inviteUser = async (req: Request, res: Response): Promise<void> => 
     });
     
     if (existingUser) {
-      // If user exists but was previously removed (has deletedAt set)
-      if (existingUser.deletedAt) {
-        // Reactivate the user
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { 
-            deletedAt: null,
-            organizationId
-          }
-        });
-      }
+      // If user exists 
       
       // Check if membership exists
       const existingMembership = await prisma.organizationMembership.findFirst({
@@ -243,9 +233,7 @@ export const inviteUser = async (req: Request, res: Response): Promise<void> => 
             role: role as UserRole
           }
         });
-      }
-      
-      res.status(200).json({
+        res.status(200).json({
         success: true,
         message: 'User added to organization',
         user: {
@@ -255,42 +243,14 @@ export const inviteUser = async (req: Request, res: Response): Promise<void> => 
         }
       });
       return;
-    }
-    
-    // If user doesn't exist, create new user with organization
-    const password = Math.random().toString(36).slice(-8);
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        organizationId,
-        organizationMembership: {
-          create: {
-            organizationId,
-            role: role as UserRole
-          }
-        }
-      },
-      include: {
-        organization: true
       }
-    });
-    
-    res.status(201).json({
+    } else {
+    //User does not exist, return error
+    res.status(404).json({
       success: true,
-      message: 'User invited successfully',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        organization: user.organization.name
-      },
-      password: password
+      message: 'User does not exist',
     });
+    }
   } catch (error) {
     console.error('Invite user error:', error);
     res.status(500).json({ message: 'Server error', error: (error as Error).message });
