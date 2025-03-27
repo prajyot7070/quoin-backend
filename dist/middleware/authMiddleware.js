@@ -26,7 +26,7 @@ const protect = (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
         if (!decoded) {
             return res.status(401).json({ message: 'Not authorized, invalid token' });
         }
-        const user = yield db_1.default.users.findUnique({
+        const user = yield db_1.default.user.findUnique({
             where: { id: decoded.id },
             include: { organization: true }
         });

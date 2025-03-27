@@ -6,9 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
-const trinoRoutes_1 = __importDefault(require("./routes/trinoRoutes"));
-const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
 const cors_1 = __importDefault(require("cors"));
+const organizationRoutes_1 = __importDefault(require("./routes/organizationRoutes"));
+const projectRoutes_1 = __importDefault(require("./routes/projectRoutes"));
+const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
+const queryRoutes_1 = __importDefault(require("./routes/queryRoutes"));
 dotenv_1.default.config();
 const PORT = process.env.PORT || 3004;
 const app = (0, express_1.default)();
@@ -30,10 +32,14 @@ app.get('/', (req, res) => {
 });
 // Auth routes
 app.use('/api/auth', authRoutes_1.default);
-// Trino Routes
-app.use('/api/trino', trinoRoutes_1.default);
-// AI Routes
+// Organization routes
+app.use('/api/organizations', organizationRoutes_1.default);
+// Project routes
+app.use('/api/projects', projectRoutes_1.default);
+// AI routes
 app.use('/api/ai', aiRoutes_1.default);
+// Query routes
+app.use('/api/queries', queryRoutes_1.default);
 app.listen(PORT, () => {
     console.log(`Server is running at ${PORT}!`);
 });

@@ -130,6 +130,14 @@ export const getProfile = async (req: Request, res: Response): Promise<any> => {
             email: true,
           },
         },
+        projects: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            userId: true,
+          },
+        },
         organizationMembership: {
           select: {
             role: true,
