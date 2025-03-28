@@ -136,6 +136,12 @@ export const getProfile = async (req: Request, res: Response): Promise<any> => {
             name: true,
             description: true,
             userId: true,
+            connections: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           },
         },
         organizationMembership: {

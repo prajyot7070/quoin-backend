@@ -138,6 +138,12 @@ const getProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                         name: true,
                         description: true,
                         userId: true,
+                        connections: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
                     },
                 },
                 organizationMembership: {
