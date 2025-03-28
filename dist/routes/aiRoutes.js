@@ -13,5 +13,5 @@ router.use(authMiddleware_1.protect);
 // AI query generation routes
 router.post('/generate-query', authMiddleware_1.protect, aiController_1.generateQuery);
 router.post('/refine-query', authMiddleware_1.protect, aiController_1.refineQuery);
-router.get('/cache-schema', authMiddleware_1.protect, cacheController_1.cacheSchema);
+router.post('/cache-schema', authMiddleware_1.protect, cacheController_1.cacheSchema);
 exports.default = router;

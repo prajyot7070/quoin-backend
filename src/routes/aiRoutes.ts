@@ -10,6 +10,6 @@ router.use(protect);
 // AI query generation routes
 router.post('/generate-query', protect, generateQuery);
 router.post('/refine-query',protect , refineQuery);
-router.get('/cache-schema',protect ,cacheSchema);
+router.post('/cache-schema',protect ,cacheSchema);
 
 export default router;
