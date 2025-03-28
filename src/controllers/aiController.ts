@@ -3,7 +3,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import prisma from '../config/db';
 import { sanitizeSqlQuery } from '../utils/sanitizeSqlQuery';
 import { createTrinoClient, TrinoConfig } from '../config/trino';
-import { processTrinoSchemaResponse, SchemaRow } from '../utils/schemaformater';
+//import { processTrinoSchemaResponse, SchemaRow } from '../utils/schemaformater';
+import { getCachedSchema } from './cacheController';
 
 const API_KEY = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -83,11 +84,9 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
       connectionId, 
       dialect = 'trino',
       optimizeForOLAP = false,
-      //userId
     } = req.body;
     const userId = req.users?.id;
 
-    
     // Validate request data
     if (!prompt || !connectionId) {
       res.status(400).json({ 
@@ -124,73 +123,53 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
       }
     });
 
-    //query to get Database schema
-    const queryDatabaseSchema = `
-            SELECT
-                t.table_schema,
-                t.table_name,
-                c.column_name,
-                c.data_type
-            FROM
-                ${connection.catalog}.information_schema.tables AS t
-            JOIN
-                ${connection.catalog}.information_schema.columns AS c
-            ON
-                t.table_schema = c.table_schema AND t.table_name = c.table_name
-            WHERE
-                t.table_schema NOT IN ('information_schema', 'pg_catalog') AND t.table_type = 'BASE TABLE'
-            ORDER BY
-                t.table_schema, t.table_name, c.ordinal_position`
-
-    const trinoConfig: TrinoConfig = {
-       server: connection.server,
+    // Try to get cached schema first
+    //console.log(`Calling getCachedSchema() function`);
+    const cachedSchema = await getCachedSchema(connectionId);
+    //if (cachedSchema) console.log(`Got cachedSchema`);
+    let processedRows = [];
+    
+    // If no cached schema, fetch it using the original method
+    if (!cachedSchema) {
+      const trinoConfig: TrinoConfig = {
+        server: connection.server,
         catalog: connection.catalog,
         schema: connection.schema,
         source: connection.source || undefined,
         extraHeaders: {
           'X-Trino-User': 'trino_user',
         }
+      };
+      
+      const client = await createTrinoClient(trinoConfig);
+      const queryDatabaseSchema = `
+        SELECT
+          t.table_schema,
+          t.table_name,
+          c.column_name,
+          c.data_type
+        FROM
+          ${connection.catalog}.information_schema.tables AS t
+        JOIN
+          ${connection.catalog}.information_schema.columns AS c
+        ON
+          t.table_schema = c.table_schema AND t.table_name = c.table_name
+        WHERE
+          t.table_schema NOT IN ('information_schema', 'pg_catalog') AND t.table_type = 'BASE TABLE'
+        ORDER BY
+          t.table_schema, t.table_name, c.ordinal_position`;
+      
+      const resultIterator = await client.query(queryDatabaseSchema);
+      processedRows = await processTrinoSchemaResponse(resultIterator);
+    } else {
+      processedRows = cachedSchema.tables;
+      //console.log('Using cached schema');
     }
-    const client = await createTrinoClient(trinoConfig);
-    let processedRows = [];
-		
-		try {
-		  const resultIterator = await client.query(queryDatabaseSchema);
-		  processedRows = await processTrinoSchemaResponse(resultIterator);
-		  console.log(`Fetched schema for ${processedRows.length}`);
-		  
-		} catch (error) {
-		  console.error('Error processing query results:', error);
-		  throw error;
-		}
-//        
-//        if (query_response.success && query_response.result) {
-//            // Check if the query_response.is an async iterable
-//            if (typeof query_response.result[Symbol.asyncIterator] === 'function') {
-//                console.log('Processing async iterable...');
-//                for await (const row of query_response.result) {
-//                    // Capture the first raw row
-//                    if (!rawData) {
-//                        rawData = row;
-//                        //console.log('Raw row:', row);
-//                    }
-//                    
-//                    // Process rows
-//                    if (row.data && Array.isArray(row.data)) {
-//                        processedRows.push({
-//                            table_schema: row.data[0],
-//                            table_name: row.data[1],
-//                            column_name: row.data[2],
-//                            data_type: row.data[3]
-//                        });
-//                    }
-//                }
-//            }
-//        }
     
-    console.log(`Fetched schema for ${processedRows.length} tables`);
-    
-    const schemaContext = processedRows.map(row => `${row.table_schema},${row.table_name},${row.column_name},${row.data_type}`).join('\n');
+    //console.log(`Fetched schema for ${processedRows.length} tables`);
+    const schemaContext = processedRows.map(row => 
+      `${row.table_schema},${row.table_name},${row.column_name},${row.data_type}`
+    ).join('\n');
 
     // Build the complete context based on filters and user role
     let completeContext = baseContext;
@@ -239,7 +218,7 @@ EVALUATION CRITERIA:
 3. Performance: Optimize for execution speed and resource efficiency
 4. Storage efficiency: Consider data organization and compression when creating tables`;
 
-    console.log(`Complete Context :- ${completeContext}`);
+    //console.log(`Complete Context :- ${completeContext}`);
     // Generate the query
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await model.generateContent([
@@ -271,6 +250,8 @@ EVALUATION CRITERIA:
       query,
       connectionId 
     });
+    
+    // Rest of the code remains the same...
   } catch (error) {
     console.error('Generate query failed:', error);
     res.status(500).json({ 
@@ -279,6 +260,25 @@ EVALUATION CRITERIA:
     });
   }
 }
+
+// Helper function to process Trino schema response
+async function processTrinoSchemaResponse(resultIterator: any): Promise<any[]> {
+  const processedRows: any[] = [];
+  
+  for await (const row of resultIterator) {
+    if (row.data && Array.isArray(row.data)) {
+      processedRows.push({
+        table_schema: row.data[0],
+        table_name: row.data[1],
+        column_name: row.data[2],
+        data_type: row.data[3]
+      });
+    }
+  }
+  
+  return processedRows;
+}
+
 
 export async function refineQuery(req: Request, res: Response): Promise<void> {
   try {
