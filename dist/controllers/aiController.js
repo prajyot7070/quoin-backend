@@ -27,6 +27,7 @@ const sanitizeSqlQuery_1 = require("../utils/sanitizeSqlQuery");
 const trino_1 = require("../config/trino");
 //import { processTrinoSchemaResponse, SchemaRow } from '../utils/schemaformater';
 const cacheController_1 = require("./cacheController");
+const supabase_js_1 = require("@supabase/supabase-js");
 const API_KEY = process.env.GEMINI_API_KEY || '';
 const genAI = new generative_ai_1.GoogleGenerativeAI(API_KEY);
 // Base context for generating good database queries
@@ -97,6 +98,7 @@ function generateQuery(req, res) {
         try {
             const { prompt, connectionId, dialect = 'trino', optimizeForOLAP = false, } = req.body;
             const userId = (_a = req.users) === null || _a === void 0 ? void 0 : _a.id;
+            console.log(`Dialect - ${dialect} \n Prompt - ${prompt} \n connectionId - ${connectionId}`);
             // Validate request data
             if (!prompt || !connectionId) {
                 res.status(400).json({
@@ -122,6 +124,7 @@ function generateQuery(req, res) {
                 });
                 return;
             }
+            console.log(`Connection details fetched \n Connection - ${connection}`);
             // Check user permissions for DML security
             const userMembership = yield db_1.default.organizationMembership.findFirst({
                 where: {
@@ -129,48 +132,85 @@ function generateQuery(req, res) {
                     organizationId: connection.project.organizationId
                 }
             });
-            // Try to get cached schema first
-            //console.log(`Calling getCachedSchema() function`);
-            const cachedSchema = yield (0, cacheController_1.getCachedSchema)(connectionId);
             //if (cachedSchema) console.log(`Got cachedSchema`);
             let processedRows = [];
-            // If no cached schema, fetch it using the original method
-            if (!cachedSchema) {
-                const trinoConfig = {
-                    server: connection.server,
-                    catalog: connection.catalog,
-                    schema: connection.schema,
-                    source: connection.source || undefined,
-                    extraHeaders: {
-                        'X-Trino-User': 'trino_user',
+            let schemaContext;
+            if (dialect == 'trino') {
+                console.log(`Inside trino`);
+                // Try to get cached schema first
+                const cachedSchema = yield (0, cacheController_1.getCachedSchema)(connectionId);
+                // If no cached schema, fetch it using the original method
+                if (!cachedSchema) {
+                    const trinoConfig = {
+                        server: connection.server,
+                        catalog: connection.catalog,
+                        schema: connection.schema,
+                        source: connection.source || undefined,
+                        extraHeaders: {
+                            'X-Trino-User': 'trino_user',
+                        }
+                    };
+                    const client = yield (0, trino_1.createTrinoClient)(trinoConfig);
+                    const queryDatabaseSchema = `
+	        SELECT
+	          t.table_schema,
+	          t.table_name,
+	          c.column_name,
+	          c.data_type
+	        FROM
+	          ${connection.catalog}.information_schema.tables AS t
+	        JOIN
+	          ${connection.catalog}.information_schema.columns AS c
+	        ON
+	          t.table_schema = c.table_schema AND t.table_name = c.table_name
+	        WHERE
+	          t.table_schema NOT IN ('information_schema', 'pg_catalog') AND t.table_type = 'BASE TABLE'
+	        ORDER BY
+	          t.table_schema, t.table_name, c.ordinal_position`;
+                    const resultIterator = yield client.query(queryDatabaseSchema);
+                    processedRows = yield processTrinoSchemaResponse(resultIterator);
+                }
+                else {
+                    processedRows = cachedSchema.tables;
+                    //console.log('Using cached schema');
+                }
+                //console.log(`Fetched schema for ${processedRows.length} tables`);
+                schemaContext = processedRows.map(row => `${row.table_schema},${row.table_name},${row.column_name},${row.data_type}`).join('\n');
+            }
+            else if (dialect == 'postgre') {
+                console.log(`Inside postgres`);
+                if (connection.source == 'supabase') {
+                    console.log(`Inside supabase`);
+                    // Try to get cached schema first
+                    //const cachedSchema = await getCachedSchema(connectionId);
+                    let cachedSchema;
+                    //let schemaContext;
+                    //schema not received query database for schema and cache it
+                    if (!cachedSchema) {
+                        const auth = connection.auth;
+                        let { url, apiKey } = auth;
+                        if (!url || !apiKey) {
+                            console.error("Supabase apikey or URL is missing");
+                        }
+                        apiKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvdWV5aGxob3ZmcnJkYXpwdnhiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcyMDkwMTYzNSwiZXhwIjoyMDM2NDc3NjM1fQ.fzZz5u_iL_epqDE7sM_h3un4fnsDfE_pgbqi3To_U6o";
+                        console.log(`Creating supabase client`);
+                        const supabase = (0, supabase_js_1.createClient)(url, apiKey);
+                        console.log(`Created supabase client and sending query`);
+                        let { data, error } = yield supabase.rpc('get_schema_info');
+                        if (error) {
+                            console.error("Error executing SQL query:", error);
+                            throw error;
+                        }
+                        console.log(`Supabase Query executed! \n Data :- ${data}`);
+                        schemaContext = JSON.stringify(data, null, 2);
+                        console.log(`schemaContext :- ${schemaContext}`);
                     }
-                };
-                const client = yield (0, trino_1.createTrinoClient)(trinoConfig);
-                const queryDatabaseSchema = `
-        SELECT
-          t.table_schema,
-          t.table_name,
-          c.column_name,
-          c.data_type
-        FROM
-          ${connection.catalog}.information_schema.tables AS t
-        JOIN
-          ${connection.catalog}.information_schema.columns AS c
-        ON
-          t.table_schema = c.table_schema AND t.table_name = c.table_name
-        WHERE
-          t.table_schema NOT IN ('information_schema', 'pg_catalog') AND t.table_type = 'BASE TABLE'
-        ORDER BY
-          t.table_schema, t.table_name, c.ordinal_position`;
-                const resultIterator = yield client.query(queryDatabaseSchema);
-                processedRows = yield processTrinoSchemaResponse(resultIterator);
+                    else {
+                        // if we have schema received from the cache
+                        //do something
+                    }
+                }
             }
-            else {
-                processedRows = cachedSchema.tables;
-                //console.log('Using cached schema');
-            }
-            //console.log(`Fetched schema for ${processedRows.length} tables`);
-            const schemaContext = processedRows.map(row => `${row.table_schema},${row.table_name},${row.column_name},${row.data_type}`).join('\n');
             // Build the complete context based on filters and user role
             let completeContext = baseContext;
             // Add dialect-specific context
@@ -212,7 +252,7 @@ EVALUATION CRITERIA:
 2. Dialect-specific features: Use specialized functions for this dialect (${dialect})
 3. Performance: Optimize for execution speed and resource efficiency
 4. Storage efficiency: Consider data organization and compression when creating tables`;
-            //console.log(`Complete Context :- ${completeContext}`);
+            console.log(`Complete Context :- ${completeContext}`);
             // Generate the query
             const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
             const result = yield model.generateContent([
@@ -286,6 +326,7 @@ function refineQuery(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const { originalQuery, refinementRequest, connectionId, userId } = req.body;
+            console.log(`Inside refineQuery`);
             // Validate request data
             if (!originalQuery || !refinementRequest || !connectionId) {
                 res.status(400).json({

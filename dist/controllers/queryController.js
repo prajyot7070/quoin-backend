@@ -20,6 +20,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executeQuery = executeQuery;
+exports.saveQuery = saveQuery;
+exports.getSavedQueries = getSavedQueries;
 exports.getQueryHistory = getQueryHistory;
 exports.provideFeedback = provideFeedback;
 const db_1 = __importDefault(require("../config/db"));
@@ -208,6 +210,71 @@ function executeQuery(req, res) {
                 message: "Failed to execute query",
                 error: error.message
             });
+        }
+    });
+}
+/**
+ * Save the query
+ * **/
+function saveQuery(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const { name, description, query, projectId, connectionId, userId } = req.body;
+            // Validate required fields
+            if (!name || !projectId || !userId) {
+                res.status(400).json({ error: 'Name, projectId, and userId are required fields.' });
+                return;
+            }
+            const savedQuery = yield db_1.default.savedQuery.create({
+                data: {
+                    name,
+                    description,
+                    query,
+                    projectId,
+                    connectionId,
+                    userId,
+                },
+            });
+            res.status(201).json(savedQuery);
+        }
+        catch (error) {
+            console.error('Error saving query:', error);
+            res.status(500).json({ error: 'Could not save the query.' });
+        }
+        finally {
+            yield db_1.default.$disconnect();
+        }
+    });
+}
+/**
+ * Get all the saved queries under the project
+ * **/
+function getSavedQueries(req, res) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const projectId = req.params.projectId;
+            // Validate projectId
+            if (!projectId) {
+                res.status(400).json({ error: 'Project ID is required.' });
+                return;
+            }
+            const savedQueries = yield db_1.default.savedQuery.findMany({
+                where: {
+                    projectId: projectId,
+                },
+                include: {
+                    user: true, // Include user details if needed
+                    connection: true, // Include connection details if needed
+                },
+                orderBy: {
+                    createdAt: 'desc', // Order by creation date, newest first (optional)
+                },
+            });
+            res.status(200).json(savedQueries);
+        }
+        catch (error) {
+            console.error('Error fetching saved queries:', error);
+            res.status(500).json({ error: 'Could not retrieve saved queries.' });
         }
     });
 }

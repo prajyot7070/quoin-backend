@@ -13,4 +13,6 @@ router.use(authMiddleware_1.protect);
 router.post('/execute', queryController_1.executeQuery);
 router.get('/history/:projectId', queryController_1.getQueryHistory);
 router.post('/feedback', queryController_1.provideFeedback);
+router.post('/save', queryController_1.saveQuery);
+router.get('/savedqueries/:projectId', queryController_1.getSavedQueries);
 exports.default = router;

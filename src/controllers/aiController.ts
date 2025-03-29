@@ -332,7 +332,7 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
       connectionId,
       userId
     } = req.body;
-    
+    console.log(`Inside refineQuery`);
     // Validate request data
     if (!originalQuery || !refinementRequest || !connectionId) {
       res.status(400).json({ 

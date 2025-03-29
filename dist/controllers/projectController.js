@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteProject = exports.getProjectsForOrganization = exports.getProject = exports.createProject = void 0;
 const db_1 = __importDefault(require("../config/db"));
 const trino_1 = require("../config/trino");
-const pg_1 = require("pg"); // For PostgreSQL testing
 const createProject = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
@@ -36,22 +35,24 @@ const createProject = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 const client = yield (0, trino_1.createTrinoClient)(trinoConfig);
                 yield client.query('SELECT 1 AS success');
             }
-            else if (connectionType === 'postgres' || connectionType === 'neon') {
-                const { host, port, database, user, password } = connectionDetails.auth;
-                const pool = new pg_1.Pool({
-                    host,
-                    port,
-                    database,
-                    user,
-                    password,
-                    ssl: connectionDetails.ssl || undefined
-                });
-                // Test connection
-                const client = yield pool.connect();
-                yield client.query('SELECT 1');
-                client.release();
-                yield pool.end();
-            }
+            //      else if (connectionType === 'postgres' || connectionType === 'neon') {
+            //        const { host, port, database, user, password } = connectionDetails.auth;
+            //        
+            //        const pool = new Pool({
+            //          host,
+            //          port,
+            //          database,
+            //          user,
+            //          password,
+            //          ssl: connectionDetails.ssl || undefined
+            //        });
+            //        
+            //        // Test connection
+            //        const client = await pool.connect();
+            //        await client.query('SELECT 1');
+            //        client.release();
+            //        await pool.end();
+            //      } 
             else if (connectionType === 'supabase') {
                 const { url, apiKey } = connectionDetails.auth;
                 // Test Supabase connection using fetch

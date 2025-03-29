@@ -82,7 +82,7 @@ function cacheSchema(req, res) {
             };
             // Create Trino client
             const client = yield (0, trino_1.createTrinoClient)(trinoConfig);
-            // Query to fetch database schema
+            // Query to fetch database schema (tables and columns)
             const queryDatabaseSchema = `
       SELECT
         t.table_schema,
@@ -101,12 +101,42 @@ function cacheSchema(req, res) {
       ORDER BY
         t.table_schema, t.table_name, c.ordinal_position
     `;
+            // Query to fetch foreign key relationships
+            const queryRelationships = `
+  SELECT
+    tc.constraint_name,
+    kcu.table_schema AS source_schema,
+    kcu.table_name AS source_table,
+    kcu.column_name AS source_column,
+    ccu.table_schema AS target_schema,
+    ccu.table_name AS target_table,
+    ccu.column_name AS target_column
+  FROM
+    ${connection.catalog}.information_schema.table_constraints AS tc
+  JOIN
+    ${connection.catalog}.information_schema.key_column_usage AS kcu
+  ON
+    tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+  JOIN
+    ${connection.catalog}.information_schema.constraint_column_usage AS ccu
+  ON
+    ccu.constraint_name = tc.constraint_name
+  WHERE
+    tc.constraint_type = 'FOREIGN KEY'
+    AND tc.table_schema NOT IN ('information_schema', 'pg_catalog')
+`;
             // Execute schema query
-            const resultIterator = yield client.query(queryDatabaseSchema);
-            const processedRows = yield processTrinoSchemaResponse(resultIterator);
+            const schemaResultIterator = yield client.query(queryDatabaseSchema);
+            const processedTables = yield processTrinoSchemaResponse(schemaResultIterator);
+            // Execute relationships query
+            const relationshipsResultIterator = yield client.query(queryRelationships);
+            console.log(`Raw relationships reponse - ${relationshipsResultIterator} `);
+            const processedRelationships = yield processTrinoRelationshipsResponse(relationshipsResultIterator);
             // Prepare cache object
             const schemaCache = {
-                tables: processedRows,
+                tables: processedTables,
+                relationships: processedRelationships,
                 cachedAt: Date.now()
             };
             // Cache in Redis with expiration (24 hours)
@@ -115,7 +145,8 @@ function cacheSchema(req, res) {
             // Respond with success
             res.status(200).json({
                 message: "Schema cached successfully",
-                tableCount: processedRows.length,
+                tableCount: processedTables.length,
+                relationshipCount: processedRelationships.length,
                 cachedAt: schemaCache.cachedAt
             });
         }
@@ -165,7 +196,52 @@ function processTrinoSchemaResponse(resultIterator) {
         return processedRows;
     });
 }
-// New function to retrieve cached schema from Redis
+// Helper function to process Trino relationships response
+function processTrinoRelationshipsResponse(resultIterator) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, resultIterator_2, resultIterator_2_1;
+        var _b, e_2, _c, _d;
+        const processedRelationships = [];
+        try {
+            for (_a = true, resultIterator_2 = __asyncValues(resultIterator); resultIterator_2_1 = yield resultIterator_2.next(), _b = resultIterator_2_1.done, !_b; _a = true) {
+                _d = resultIterator_2_1.value;
+                _a = false;
+                const response = _d;
+                console.log(`Processing response - `, response);
+                // Check if this is a data response with columns and data
+                if (response.columns && response.data) {
+                    console.log(`Found data - `, response.data);
+                    // Process each row in the data array
+                    for (const row of response.data) {
+                        if (Array.isArray(row) && row.length >= 7) {
+                            processedRelationships.push({
+                                constraint_name: row[0],
+                                source_schema: row[1],
+                                source_table: row[2],
+                                source_column: row[3],
+                                target_schema: row[4],
+                                target_table: row[5],
+                                target_column: row[6]
+                            });
+                        }
+                        else {
+                            console.log(`Skipping malformed row: `, row);
+                        }
+                    }
+                }
+            }
+        }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (!_a && !_b && (_c = resultIterator_2.return)) yield _c.call(resultIterator_2);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
+        return processedRelationships;
+    });
+}
+// Function to retrieve cached schema from Redis
 function getCachedSchema(connectionId) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
