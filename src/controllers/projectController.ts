@@ -33,24 +33,24 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
         const client = await createTrinoClient(trinoConfig);
         await client.query('SELECT 1 AS success');
       } 
-      else if (connectionType === 'postgres' || connectionType === 'neon') {
-        const { host, port, database, user, password } = connectionDetails.auth;
-        
-        const pool = new Pool({
-          host,
-          port,
-          database,
-          user,
-          password,
-          ssl: connectionDetails.ssl || undefined
-        });
-        
-        // Test connection
-        const client = await pool.connect();
-        await client.query('SELECT 1');
-        client.release();
-        await pool.end();
-      } 
+//      else if (connectionType === 'postgres' || connectionType === 'neon') {
+//        const { host, port, database, user, password } = connectionDetails.auth;
+//        
+//        const pool = new Pool({
+//          host,
+//          port,
+//          database,
+//          user,
+//          password,
+//          ssl: connectionDetails.ssl || undefined
+//        });
+//        
+//        // Test connection
+//        const client = await pool.connect();
+//        await client.query('SELECT 1');
+//        client.release();
+//        await pool.end();
+//      } 
       else if (connectionType === 'supabase') {
         const { url, apiKey } = connectionDetails.auth;
         
