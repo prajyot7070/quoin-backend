@@ -131,6 +131,9 @@ export const getProfile = async (req: Request, res: Response): Promise<any> => {
           },
         },
         projects: {
+          where: {
+            deletedAt: null,
+          },
           select: {
             id: true,
             name: true,

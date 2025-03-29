@@ -133,6 +133,9 @@ const getProfile = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
                     },
                 },
                 projects: {
+                    where: {
+                        deletedAt: null,
+                    },
                     select: {
                         id: true,
                         name: true,
