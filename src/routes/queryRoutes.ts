@@ -1,6 +1,7 @@
 import express from 'express';
 import { protect } from '../middleware/authMiddleware';
-import { executeQuery, getQueryHistory, provideFeedback } from '../controllers/queryController';
+import { executeQuery ,saveQuery , getQueryHistory,getSavedQueries , provideFeedback } from '../controllers/queryController';
+
 
 const router = express.Router();
 
@@ -11,5 +12,7 @@ router.use(protect);
 router.post('/execute', executeQuery);
 router.get('/history/:projectId', getQueryHistory);
 router.post('/feedback', provideFeedback);
+router.post('/save', saveQuery);
+router.get('/savedqueries/:projectId', getSavedQueries);
 
 export default router;

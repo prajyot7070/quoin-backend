@@ -190,6 +190,72 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * Save the query
+ * **/
+export async function saveQuery(req: Request, res: Response): Promise<void> {
+  try {
+    const { name, description, query, projectId, connectionId, userId } = req.body;
+
+    // Validate required fields
+    if (!name || !projectId || !userId) {
+      res.status(400).json({ error: 'Name, projectId, and userId are required fields.' });
+      return;
+    }
+
+    const savedQuery = await prisma.savedQuery.create({
+      data: {
+        name,
+        description,
+        query,
+        projectId,
+        connectionId,
+        userId,
+      },
+    });
+
+    res.status(201).json(savedQuery);
+  } catch (error: any) {
+    console.error('Error saving query:', error);
+    res.status(500).json({ error: 'Could not save the query.' });
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+/**
+ * Get all the saved queries under the project
+ * **/
+export async function getSavedQueries(req: Request, res: Response): Promise<void> {
+  try {
+    const projectId = req.params.projectId;
+
+    // Validate projectId
+    if (!projectId) {
+      res.status(400).json({ error: 'Project ID is required.' });
+      return;
+    }
+
+    const savedQueries = await prisma.savedQuery.findMany({
+      where: {
+        projectId: projectId,
+      },
+      include: {
+        user: true, // Include user details if needed
+        connection: true, // Include connection details if needed
+      },
+      orderBy: {
+        createdAt: 'desc', // Order by creation date, newest first (optional)
+      },
+    });
+
+    res.status(200).json(savedQueries);
+  } catch (error: any) {
+    console.error('Error fetching saved queries:', error);
+    res.status(500).json({ error: 'Could not retrieve saved queries.' });
+  } 
+}
+
+/**
  * Get query execution history for a project
  */
 export async function getQueryHistory(req: Request, res: Response): Promise<void> {
