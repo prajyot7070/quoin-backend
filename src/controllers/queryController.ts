@@ -67,6 +67,17 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
     let queryResult;
     let error = null;
     let resultSize = 0;
+    let elapsedTime: number | undefined;
+    let analysisTime: number | undefined;
+    let planningTime: number | undefined;
+    let cpuTime: number | undefined;
+    let wallTime: number | undefined;
+    let processedRows: number | undefined;
+    let processedBytes: number | undefined;
+    let peakMemoryBytes: number | undefined;
+    let physicalInputBytes: number | undefined;
+    let queuedTime: number | undefined;
+    let finishingTime: number | undefined;
     
     // Execute query based on connection type
     try {
@@ -94,9 +105,22 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
           }
         }
         queryResult = { rows };
+        console.log(`Query Result: 97 - ${queryResult}`);
         if (rows) { console.error(`Executed!!!`); }
         resultSize = rows.length;
         if (resultSize) console.error(`resultSize :- ${resultSize}`);
+        if (resultSize) {
+          cpuTime = queryResult.rows[0]?.stats?.cpuTimeMillis;
+          physicalInputBytes = queryResult.rows[0]?.stats?.physicalInputBytes;
+          elapsedTime = queryResult.rows[0]?.stats?.elapsedTimeMillis;
+          //analysisTime = rows[0].stats?.analysisTimeMillis;
+          wallTime = queryResult.rows[0]?.stats?.wallTimeMillis;
+          peakMemoryBytes = queryResult.rows[0]?.stats?.peakMemoryBytes;
+          processedRows = queryResult.rows[0]?.stats?.processedRows;
+          processedBytes = queryResult.rows[0]?.stats?.processedBytes;
+          queuedTime = queryResult.rows[0]?.stats?.queuedTimeMillis;
+          //finishingTime = queryResult.rows[0]?.stats?.finishingTime;
+        }
       } 
       else if (connection.source === 'postgres' || connection.source === 'neon') {
         const auth = connection.auth as Record<string, any>;

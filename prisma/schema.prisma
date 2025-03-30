@@ -122,6 +122,16 @@ model ExecutedQuery {
   status       String
   error        String?
   resultSize   Int?
+  elapsedTime  Float?
+  analysisTime Float?
+  planningTime Float?
+  cpuTime      Float?
+  wallTime     Float?
+  processedRows      BigInt?
+  processedBytes     BigInt?
+  physicalInputBytes BigInt?
+  queuedTime         Float?
+  finishingTime      Float? 
 }
 
 model QueryFeedback {

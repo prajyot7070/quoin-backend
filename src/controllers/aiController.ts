@@ -332,7 +332,7 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
       connectionId,
       userId
     } = req.body;
-    console.log(`Inside refineQuery`);
+    
     // Validate request data
     if (!originalQuery || !refinementRequest || !connectionId) {
       res.status(400).json({ 
@@ -371,35 +371,46 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
 
     // Fetch schema information directly using Prisma
     let tableInfo = [];
+    let schemaContextString = "Schema details not fetched via this method."; // Default
+
     try {
-      // For Prisma direct database access, we'll use a different approach based on connection type
-      // This example assumes a PostgreSQL-compatible database
       if (connection.source === 'postgres' || connection.source === 'neon' || connection.source === 'supabase') {
-        // Get tables in the schema
-        const tables = await prisma.$queryRaw`
-          SELECT table_name 
-          FROM information_schema.tables 
+        // Get tables in the schema (Original queryRaw)
+        const tables: any = await prisma.$queryRaw`
+          SELECT table_name
+          FROM information_schema.tables
           WHERE table_schema = ${connection.schema}
           AND table_type = 'BASE TABLE'
         `;
-        
-        // Get columns for each table
-        for (const table of Array.isArray(tables) ? tables : [tables]) {
-          const columns = await prisma.$queryRaw`
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns 
-            WHERE table_schema = ${connection.schema} 
-            AND table_name = ${table.table_name}
-            ORDER BY ordinal_position
-          `;
-          
-          tableInfo.push({
-            table_name: table.table_name,
-            columns: columns
-          });
-        }
+
+        // Get columns for each table (Original queryRaw loop)
+        // *** CHANGED: Made loop slightly safer using Promise.all for clarity ***
+        const tablePromises = (Array.isArray(tables) ? tables : [tables]).map(async (table: any) => {
+             const columns: any = await prisma.$queryRaw`
+                SELECT column_name, data_type, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = ${connection.schema}
+                AND table_name = ${table.table_name}
+                ORDER BY ordinal_position
+             `;
+             return {
+                table_name: table.table_name,
+                // *** CHANGED: Format columns slightly differently for context string ***
+                columns: (Array.isArray(columns) ? columns : [columns]).map((c: any) => `${c.column_name} (${c.data_type})`)
+             };
+        });
+        tableInfo = await Promise.all(tablePromises);
+
+        // *** ADDED: Create a string representation from tableInfo ***
+        schemaContextString = tableInfo.map(t =>
+            `Table: ${t.table_name}\n  Columns: ${t.columns.join(', ')}`
+        ).join('\n');
+        if (!schemaContextString) schemaContextString = "Schema fetched, but no tables/columns found.";
+
+
       } else {
-        // For other connection types, we might need to implement alternative approaches
+        // Original fallback logic
+        schemaContextString = `Schema information not fetched via Prisma for source type: ${connection.source}`;
         tableInfo = [{
           message: "Schema information not available for this connection type via Prisma directly",
           note: "AI will refine based on the original query structure"
@@ -407,33 +418,80 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
       }
     } catch (error) {
       console.error('Error fetching schema:', error);
+       // *** CHANGED: Update context string on error ***
+      schemaContextString = `Failed to fetch schema information via Prisma. Error: ${(error as Error).message}`;
       tableInfo = [{
         error: "Failed to fetch schema information",
         message: (error as Error).message
       }];
     }
 
-    // Create a refinement context
+
+    // *** ADDED: Fetch Query History and Feedback ***
+    let historyContext = "No recent query history available for this connection.";
+    try {
+        const history = await prisma.executedQuery.findMany({
+            where: { connectionId: connectionId }, // Filter by this connection
+            orderBy: { executedAt: 'desc' },
+            take: 5, // Limit to last 5
+            include: {
+                feedbacks: { // Include feedback
+                    orderBy: { createdAt: 'desc' }
+                }
+            }
+        });
+
+        if (history.length > 0) {
+            historyContext = history.map((entry, index) => {
+                const feedbackStrings = entry.feedbacks.map(fb =>
+                    `  - Feedback (Rating: ${fb.rating}): ${fb.text || 'No comment'}`
+                ).join('\n');
+                // Format for AI context
+                return `--- History Entry ${index + 1} ---\n` +
+                       `Query: ${entry.query}\n` +
+                       `Status: ${entry.status}\n` +
+                       `${feedbackStrings ? `Feedback:\n${feedbackStrings}` : 'No Feedback.'}`;
+            }).join('\n\n');
+        }
+    } catch (historyError) {
+        console.error(`Failed to fetch query history for connection ${connectionId}:`, historyError);
+        // Keep default message on error
+    }
+    // *** END ADDED: Fetch Query History and Feedback ***
+
+
+    // Create a refinement context (Original structure, but incorporating new history)
+    // *** CHANGED: Modified context string to include history and structure better ***
     const refinementContext = `You are an AI assistant that specializes in refining and improving SQL queries.
 INSTRUCTIONS:
-1. You are given an original SQL query and a request to refine it
-2. Modify the query to meet the refinement request while maintaining correctness
-3. Use EXACT table and column names as provided in the schema details
-4. Focus on performance and efficiency in your refined query
-5. Do not include any explanation, markdown formatting, or comments in your response
-6. Return ONLY the refined SQL query
+1. You are given an original SQL query and a request to refine it.
+2. Modify the query to meet the refinement request while maintaining correctness.
+3. Use EXACT table and column names if schema details are provided below.
+4. Consider the recent query history and feedback provided below for context.
+5. Focus on performance and efficiency in your refined query.
+6. Do not include any explanation, markdown formatting, or comments in your response.
+7. Return ONLY the refined SQL query.
 
 CONNECTION DETAILS:
 - Catalog: ${connection.catalog}
 - Schema: ${connection.schema}
-- Source Type: ${connection.source}
-- Tables and Columns: ${JSON.stringify(tableInfo, null, 2)}
+- Source Type: ${connection.source || 'N/A'}
 
-ORIGINAL QUERY:
+SCHEMA DETAILS (Fetched via Prisma for compatible sources):
+${schemaContextString}
+
+RECENT QUERY HISTORY & FEEDBACK (Last 5 for this connection):
+${historyContext}
+
+ORIGINAL QUERY TO REFINE:
 ${originalQuery}
 
-${userMembership?.role === 'VIEWER' ? viewerSecurityContext : ''}`;
+${userMembership?.role === 'VIEWER' ? viewerSecurityContext : ''}
 
+USER'S REFINEMENT REQUEST:
+${refinementRequest}
+
+REFINED QUERY OUTPUT (Return ONLY the SQL):`; 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const result = await model.generateContent([
       { text: refinementContext },
@@ -458,7 +516,8 @@ ${userMembership?.role === 'VIEWER' ? viewerSecurityContext : ''}`;
       message: "Query refined successfully", 
       originalQuery,
       refinedQuery,
-      connectionId 
+      connectionId,
+      generateContext: refinementContext,
     });
   } catch (error) {
     console.error('Refine query failed:', error);
