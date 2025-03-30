@@ -116,6 +116,7 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
           //analysisTime = queryResult.rows[0].stats?.analysisTime;
           wallTime = queryResult.rows[0]?.stats?.wallTimeMillis;
           peakMemoryBytes = queryResult.rows[0]?.stats?.peakMemoryBytes;
+          console.log(`Type of peakMemoryBytes - ${typeof peakMemoryBytes}`);
 //          processedRows = queryResult.rows[0]?.stats?.processedRows;
 //          processedBytes = queryResult.rows[0]?.stats?.processedBytes;
           queuedTime = queryResult.rows[0]?.stats?.queuedTimeMillis;

@@ -123,6 +123,7 @@ model ExecutedQuery {
   error        String?
   resultSize   Int?
   elapsedTime  Float?
+  peakMemoryBytes Int?
   analysisTime Float?
   planningTime Float?
   cpuTime      Float?
