@@ -20,11 +20,12 @@ INSTRUCTIONS:
 2. Use EXACT table and column names as provided in the schema details
 3. Pay special attention to singular/plural forms in table names
 4. Strictly return ONLY the SQL query and do not add /n or any other formatting characters just the raw sql query.
-5. Include appropriate joins when information is needed from multiple tables
-6. Use appropriate SQL functions and operators when needed (COUNT, SUM, GROUP BY, etc.)
-7. Focus on performance and efficiency in your queries
-8. Incorporate query optimization techniques specific to the dialect
-9. Do not include any explanation, markdown formatting, or comments in your response
+5. Make sure you give response in one line only.
+6. Include appropriate joins when information is needed from multiple tables
+7. Use appropriate SQL functions and operators when needed (COUNT, SUM, GROUP BY, etc.)
+8. Focus on performance and efficiency in your queries
+9. Incorporate query optimization techniques specific to the dialect
+10. Do not include any explanation, markdown formatting, or comments in your response
 `;
 
 // Additional dialect-specific contexts
@@ -32,12 +33,13 @@ const dialectContexts = {
   trino: `This is a Trino SQL query. Optimize accordingly:
 1. Always use <catalog>.<schema>.tablename syntax when referring to tables
 2. Use Trino-specific functions like UNNEST for array operations
-3. Leverage Trino's array and map functions for complex data structures
-4. Use TABLESAMPLE when working with large datasets that don't require exact results
-5. For table definitions, use WITH (partitioned_by = ARRAY['column']) for partitioning
-6. Implement proper bucketing with WITH (bucketed_by = ARRAY['column'], bucket_count = N)
-7. Use approximate functions (approx_distinct, approx_percentile) for large datasets
-8. Leverage GROUPING SETS, CUBE, or ROLLUP for multi-dimensional aggregations`,
+3. Always give query in one line only.
+4. Leverage Trino's array and map functions for complex data structures
+5. Use TABLESAMPLE when working with large datasets that don't require exact results
+6. For table definitions, use WITH (partitioned_by = ARRAY['column']) for partitioning
+7. Implement proper bucketing with WITH (bucketed_by = ARRAY['column'], bucket_count = N)
+8. Use approximate functions (approx_distinct, approx_percentile) for large datasets
+9. Leverage GROUPING SETS, CUBE, or ROLLUP for multi-dimensional aggregations`,
   
   spark: `This is a Spark SQL query. Optimize accordingly:
 1. Use Spark-specific functions like EXPLODE for array operations

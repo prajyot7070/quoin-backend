@@ -145,6 +145,7 @@ function executeQuery(req, res) {
                         //analysisTime = queryResult.rows[0].stats?.analysisTime;
                         wallTime = (_k = (_j = queryResult.rows[0]) === null || _j === void 0 ? void 0 : _j.stats) === null || _k === void 0 ? void 0 : _k.wallTimeMillis;
                         peakMemoryBytes = (_m = (_l = queryResult.rows[0]) === null || _l === void 0 ? void 0 : _l.stats) === null || _m === void 0 ? void 0 : _m.peakMemoryBytes;
+                        console.log(`Type of peakMemoryBytes - ${typeof peakMemoryBytes}`);
                         //          processedRows = queryResult.rows[0]?.stats?.processedRows;
                         //          processedBytes = queryResult.rows[0]?.stats?.processedBytes;
                         queuedTime = (_p = (_o = queryResult.rows[0]) === null || _o === void 0 ? void 0 : _o.stats) === null || _p === void 0 ? void 0 : _p.queuedTimeMillis;
