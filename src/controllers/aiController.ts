@@ -353,7 +353,7 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
 
     if (queryType == 'DDL') {
       completeContext += '\n\n' + ddlContext;
-    } else {
+    } else if (queryType == 'DML'){
       completeContext += '\n\n' + dmlContext;
     }
     
