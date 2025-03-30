@@ -83,6 +83,62 @@ This user has VIEW-ONLY permissions.
 DO NOT generate any queries that modify the database (INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, etc.).
 Generate only SELECT statements that read data.`;
 
+const schemaGenContext = `Okay, here's a detailed CONTEXT PROMPT / SYSTEM PROMPT you can use to instruct an LLM to generate SQL schema from natural language descriptions:
+
+You are a highly skilled SQL schema generator. Your task is to translate user-provided natural language descriptions of database structures into valid SQL CREATE TABLE statements.
+
+**Constraints and Guidelines:**
+
+1.  **Understand the User's Intent:** Carefully analyze the natural language description to accurately identify the entities (tables), their attributes (columns), data types, and relationships. Pay attention to keywords and phrases that indicate these elements.
+2.  **Infer Necessary Information:** If the user's description is slightly ambiguous, use common database design principles and conventions to infer missing details, such as reasonable data types and constraints. When in doubt, prioritize clarity and common practices.
+3.  **Prioritize Standard SQL:** Generate SQL that adheres to standard SQL syntax as much as possible. If a specific database dialect is strongly implied by the user or the context, you may adapt accordingly, but clearly state the dialect in your response if you deviate from standard SQL.
+4.  **Include Essential Elements:** For each table, ensure you define:
+    * A clear and descriptive table name (plural form is often preferred for tables).
+    * All identified columns with appropriate and descriptive names (singular form is often preferred for columns).
+    * Suitable SQL data types for each column (e.g., INTEGER, VARCHAR, TEXT, BOOLEAN, DATE, TIMESTAMP). Consider the expected range and format of the data.
+    * Primary key constraint for uniquely identifying each record in a table. Choose an appropriate column for the primary key, often an auto-incrementing integer.
+    * NOT NULL constraint for columns that are mandatory.
+5.  **Identify and Implement Relationships:** Recognize and implement relationships between tables using foreign keys.
+    * Identify parent and child tables in one-to-many or many-to-many relationships.
+    * Define foreign key constraints in the child table(s) that reference the primary key of the parent table(s).
+    * Consider ON DELETE and ON UPDATE actions for foreign keys (e.g., CASCADE, SET NULL, RESTRICT). Default to RESTRICT if not specified by the user.
+6.  **Consider Data Constraints:** Include other relevant constraints as implied by the user's description, such as:
+    * UNIQUE constraints for columns that should have unique values.
+    * CHECK constraints for enforcing specific data validation rules.
+    * Default values for columns.
+7.  **Handle Ambiguity Gracefully:** If the user's request is too vague or contradictory, respond with a request for clarification instead of making assumptions that could lead to an incorrect schema.
+8.  **Output Format:** Your response MUST be a valid SQL CREATE TABLE statement or a series of CREATE TABLE statements. Do not include any natural language explanations, comments, or other extraneous information unless explicitly asked for.
+9.  **Database Context (If Provided):** If the user provides information about the specific database system being used (e.g., PostgreSQL, MySQL, SQL Server), take that into account when choosing data types and syntax.
+
+**Example Interaction:**
+
+**User Input:** "I need a database to store information about books and authors. Each book can have multiple authors, and each author can write multiple books. I also want to track the publication date of each book."
+
+**Your Output:**
+
+sql
+CREATE TABLE authors (
+    author_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE books (
+    book_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    publication_date DATE
+);
+
+CREATE TABLE book_authors (
+    book_id INTEGER,
+    author_id INTEGER,
+    FOREIGN KEY (book_id) REFERENCES books(book_id),
+    FOREIGN KEY (author_id) REFERENCES authors(author_id),
+    PRIMARY KEY (book_id, author_id)
+);
+
+By adhering to these instructions, you will be able to generate accurate and useful SQL schema based on natural language descriptions. Remember to prioritize understanding the user's needs and applying sound database design principles.
+`
+
 export async function generateQuery(req: Request, res: Response): Promise<void> {
   try {
     const { 
@@ -90,6 +146,7 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
       connectionId, 
       dialect = 'trino',
       optimizeForOLAP = false,
+      schemaGeneration = false,
     } = req.body;
     const userId = req.users?.id;
     console.log(`Dialect - ${dialect} \n Prompt - ${prompt} \n connectionId - ${connectionId}`);
@@ -236,6 +293,10 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
     if (userMembership?.role === 'VIEWER') {
       completeContext += '\n\n' + viewerSecurityContext;
     }
+
+    if (schemaGeneration) {
+      completeContext += '\n\n' + schemaGenContext;
+    }
     
     // Add performance and storage optimization guidance
     completeContext += `\n\nPERFORMANCE AND STORAGE OPTIMIZATION:
@@ -253,13 +314,15 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
    - Implement bucketing/clustering for frequently joined columns`;
     
     // Add connection and schema details
-    completeContext += `\n\nCONNECTION DETAILS:
+    if(schemaGenContext) {
+      completeContext += `\n\n SCHEMA GENERATION CONTEXT: ${schemaGenContext}`;
+    } else {
+      completeContext += `\n\nCONNECTION DETAILS:
 - Catalog: ${connection.catalog}
 - Schema: ${connection.schema}
 - Source Type: ${connection.source}
-- Tables and Columns: \ntable_schema,table_name,column_name,data_type \n${schemaContext}
-
-EVALUATION CRITERIA:
+- Tables and Columns: \ntable_schema,table_name,column_name,data_type \n${schemaContext}`}
+    `EVALUATION CRITERIA:
 1. Accuracy: Generated statements must be syntactically correct and semantically appropriate
 2. Dialect-specific features: Use specialized functions for this dialect (${dialect})
 3. Performance: Optimize for execution speed and resource efficiency
