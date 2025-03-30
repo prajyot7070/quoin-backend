@@ -293,6 +293,7 @@ export async function getQueryHistory(req: Request, res: Response): Promise<void
   try {
     const { projectId } = req.params;
     const userId = req.users?.id;
+    console.log(`Inside getQueryHistory`);
     
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
@@ -345,6 +346,9 @@ export async function getQueryHistory(req: Request, res: Response): Promise<void
       orderBy: { executedAt: 'desc' },
       take: 100  // Limit to recent queries
     });
+    //console.log(`executedQueries :- ${executedQueries}`);
+    // Convert BigInt values to strings before sending
+    
     
     res.status(200).json({
       success: true,
