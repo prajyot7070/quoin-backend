@@ -8,7 +8,6 @@ import { sanitizeSqlQuery } from '../utils/sanitizeSqlQuery';
  * Execute a query against a database connection
  */
 export async function executeQuery(req: Request, res: Response): Promise<void> {
-  const startTime = Date.now();
   
   try {
     const { query, connectionId } = req.body;
@@ -169,11 +168,7 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
       error = (err as Error).message;
       queryResult = null;
     }
-    
-    // Calculate execution time
-    const endTime = Date.now();
-    const duration = (endTime - startTime) / 1000; // Convert to seconds
-    
+    const duration = elapsedTime;
     // Log the executed query
     const executedQuery = await prisma.executedQuery.create({
       data: {
@@ -189,7 +184,6 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
  //       processedRows,
   //      processedBytes,
         queuedTime,
-        duration,
         error: error,
         resultSize
       }

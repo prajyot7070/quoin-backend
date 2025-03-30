@@ -13,6 +13,13 @@ import { json } from 'stream/consumers';
 const API_KEY = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
 
+enum QueryType {
+  DML = 'DML',
+  DDL = 'DDL',
+  NORMAL = 'NORMAL'
+}
+
+
 // Base context for generating good database queries
 const baseContext = `You are an AI assistant that specializes in generating highly efficient SQL queries and schema designs.
 INSTRUCTIONS:
@@ -83,9 +90,7 @@ This user has VIEW-ONLY permissions.
 DO NOT generate any queries that modify the database (INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, etc.).
 Generate only SELECT statements that read data.`;
 
-const schemaGenContext = `Okay, here's a detailed CONTEXT PROMPT / SYSTEM PROMPT you can use to instruct an LLM to generate SQL schema from natural language descriptions:
-
-You are a highly skilled SQL schema generator. Your task is to translate user-provided natural language descriptions of database structures into valid SQL CREATE TABLE statements.
+const schemaGenContext = `You are a highly skilled SQL schema generator. Your task is to translate user-provided natural language descriptions of database structures into valid SQL CREATE TABLE statements.
 
 **Constraints and Guidelines:**
 
@@ -139,6 +144,53 @@ CREATE TABLE book_authors (
 By adhering to these instructions, you will be able to generate accurate and useful SQL schema based on natural language descriptions. Remember to prioritize understanding the user's needs and applying sound database design principles.
 `
 
+const ddlContext = `You are a highly specialized and precise SQL Data Definition Language (DDL) query generator. Your sole purpose is to create valid SQL DDL statements based on user requests. You MUST ONLY generate statements that define or modify the structure of database objects.
+
+Strict Constraints:
+
+1.  DDL Only: You are strictly forbidden from generating any SQL statements that manipulate data (DML - INSERT, UPDATE, DELETE, SELECT).
+2.  Schema Definition Focus: Your output must consist exclusively of CREATE TABLE, ALTER TABLE, DROP TABLE, CREATE INDEX, ALTER INDEX, DROP INDEX, CREATE SCHEMA, ALTER SCHEMA, DROP SCHEMA, and related DDL statements.
+3.  No Data Manipulation: Under no circumstances should you generate SELECT, INSERT, UPDATE, DELETE, or any other data retrieval or modification statements.
+4.  Adhere to SQL Syntax: Ensure all generated DDL statements are syntactically correct for the specified database dialect (if provided, otherwise assume standard SQL).
+5.  No Explanations: Do not include any natural language explanations, comments, or any text that is not a valid SQL DDL statement.
+6.  Prioritize Structure: Focus on the structural aspects of the database as described in the user's request.
+
+Example User Request: Create a table named 'users' with columns for id, name, and email.
+
+Your Correct Output:
+'sql
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL
+);
+
+Example User Request: "Show me the users table."
+Incorrect Output (What you MUST avoid): SELECT * FROM users;
+Correct Output (adhering to DDL only): -- I cannot generate SELECT statements. Please provide a request for a DDL operation.
+'`
+
+const dmlContext = `
+You are a highly specialized and precise SQL Data Manipulation Language (DML) query generator. Your sole purpose is to create valid SQL DML statements based on user requests. You MUST ONLY generate statements that manipulate data within existing database structures.
+
+Strict Constraints:
+
+    DML Only: You are strictly forbidden from generating any SQL statements that define or modify the structure of database objects (DDL - CREATE, ALTER, DROP).
+    Data Manipulation Focus: Your output must consist exclusively of SELECT, INSERT, UPDATE, DELETE, and related DML statements.
+    No Schema Modification: Under no circumstances should you generate CREATE TABLE, ALTER TABLE, DROP TABLE, CREATE INDEX, ALTER INDEX, DROP INDEX, CREATE SCHEMA, ALTER SCHEMA, DROP SCHEMA, or any other schema definition or modification statements.
+    Adhere to SQL Syntax: Ensure all generated DML statements are syntactically correct for the specified database dialect (if provided, otherwise assume standard SQL).
+    No Explanations: Do not include any natural language explanations, comments, or any text that is not a valid SQL DML statement.
+    Prioritize Data Manipulation: Focus on retrieving, inserting, updating, or deleting data from existing tables as described in the user's request.
+
+Example User Request: "Get all users with the name 'John'."
+Your Correct Output: SELECT * FROM users WHERE name = 'John';
+
+Example User Request: "Create a table named 'orders'."
+Your Incorrect Output (and what you MUST avoid): CREATE TABLE orders (...);
+Your Correct Output (adhering to DML only):
+-- I cannot generate CREATE TABLE statements. Please provide a request for a DML operation.
+`
+
 export async function generateQuery(req: Request, res: Response): Promise<void> {
   try {
     const { 
@@ -147,6 +199,7 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
       dialect = 'trino',
       optimizeForOLAP = false,
       schemaGeneration = false,
+      queryType = 'NORMAL', 
     } = req.body;
     const userId = req.users?.id;
     console.log(`Dialect - ${dialect} \n Prompt - ${prompt} \n connectionId - ${connectionId}`);
@@ -297,6 +350,12 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
     if (schemaGeneration) {
       completeContext += '\n\n' + schemaGenContext;
     }
+
+    if (queryType == 'DDL') {
+      completeContext += '\n\n' + ddlContext;
+    } else {
+      completeContext += '\n\n' + dmlContext;
+    }
     
     // Add performance and storage optimization guidance
     completeContext += `\n\nPERFORMANCE AND STORAGE OPTIMIZATION:
@@ -314,7 +373,7 @@ export async function generateQuery(req: Request, res: Response): Promise<void> 
    - Implement bucketing/clustering for frequently joined columns`;
     
     // Add connection and schema details
-    if(schemaGenContext) {
+    if(schemaGeneration) {
       completeContext += `\n\n SCHEMA GENERATION CONTEXT: ${schemaGenContext}`;
     } else {
       completeContext += `\n\nCONNECTION DETAILS:
