@@ -113,7 +113,7 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
           cpuTime = queryResult.rows[0]?.stats?.cpuTimeMillis;
           physicalInputBytes = queryResult.rows[0]?.stats?.physicalInputBytes;
           elapsedTime = queryResult.rows[0]?.stats?.elapsedTimeMillis;
-          //analysisTime = rows[0].stats?.analysisTimeMillis;
+          //analysisTime = queryResult.rows[0].stats?.analysisTime;
           wallTime = queryResult.rows[0]?.stats?.wallTimeMillis;
           peakMemoryBytes = queryResult.rows[0]?.stats?.peakMemoryBytes;
           processedRows = queryResult.rows[0]?.stats?.processedRows;
@@ -181,6 +181,13 @@ export async function executeQuery(req: Request, res: Response): Promise<void> {
         projectId: connection.projectId,
         connectionId,
         status: error ? 'ERROR' : 'SUCCESS',
+        cpuTime,
+        physicalInputBytes,
+        elapsedTime,
+        wallTime,
+        processedRows,
+        processedBytes,
+        queuedTime,
         duration,
         error: error,
         resultSize

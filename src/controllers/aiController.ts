@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { diffChars } from 'diff';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import prisma from '../config/db';
 import { sanitizeSqlQuery } from '../utils/sanitizeSqlQuery';
@@ -328,6 +329,7 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
   try {
     const { 
       originalQuery, 
+      executedQuery,
       refinementRequest, 
       connectionId,
       userId
@@ -430,34 +432,67 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
     // *** ADDED: Fetch Query History and Feedback ***
     let historyContext = "No recent query history available for this connection.";
     try {
-        const history = await prisma.executedQuery.findMany({
-            where: { connectionId: connectionId }, // Filter by this connection
-            orderBy: { executedAt: 'desc' },
-            take: 5, // Limit to last 5
-            include: {
-                feedbacks: { // Include feedback
-                    orderBy: { createdAt: 'desc' }
-                }
-            }
-        });
-
-        if (history.length > 0) {
-            historyContext = history.map((entry, index) => {
-                const feedbackStrings = entry.feedbacks.map(fb =>
-                    `  - Feedback (Rating: ${fb.rating}): ${fb.text || 'No comment'}`
-                ).join('\n');
-                // Format for AI context
-                return `--- History Entry ${index + 1} ---\n` +
-                       `Query: ${entry.query}\n` +
-                       `Status: ${entry.status}\n` +
-                       `${feedbackStrings ? `Feedback:\n${feedbackStrings}` : 'No Feedback.'}`;
-            }).join('\n\n');
+      const history = await prisma.executedQuery.findMany({
+        where: { connectionId: connectionId }, // Filter by this connection
+        orderBy: { executedAt: 'desc' },
+        take: 5, // Limit to last 5
+        select: {
+          query: true, // Include the query itself
+          status: true, // Include the status
+          cpuTime: true,
+          physicalInputBytes: true,
+          elapsedTime: true,
+          wallTime: true,
+          processedRows: true,
+          processedBytes: true,
+          queuedTime: true,
+          feedbacks: {
+            orderBy: { createdAt: 'desc' }
+          }
         }
+      });
+
+      if (history.length > 0) {
+        historyContext = history.map((entry, index) => {
+          const feedbackStrings = entry.feedbacks.map(fb =>
+            `  - Feedback (Rating: ${fb.rating}): ${fb.text || 'No comment'}`
+          ).join('\n');
+          // Format for AI context
+          return `--- History Entry ${index + 1} ---\n` +
+                 `Query: ${entry.query}\n` +
+                 `Status: ${entry.status}\n` +
+                 `CPU Time: ${entry.cpuTime} s\n` +
+                 `Elapsed Time: ${entry.elapsedTime} s\n` +
+                 `Wall Time: ${entry.wallTime} s\n` +
+                 `Processed Rows: ${entry.processedRows}\n` +
+                 `Processed Bytes: ${entry.processedBytes}\n` +
+                 `Physical Input Bytes: ${entry.physicalInputBytes}\n` +
+                 `Queued Time: ${entry.queuedTime} s\n` +
+                 `${feedbackStrings ? `Feedback:\n${feedbackStrings}` : 'No Feedback.'}`;
+        }).join('\n\n');
+      }
     } catch (historyError) {
-        console.error(`Failed to fetch query history for connection ${connectionId}:`, historyError);
-        // Keep default message on error
+      console.error(`Failed to fetch query history for connection ${connectionId}:`, historyError);
+      // Keep default message on error
     }
     // *** END ADDED: Fetch Query History and Feedback ***
+    let differenceContext;
+    if(executedQuery) {
+      if( executedQuery !== originalQuery ) {
+        const changes  = diffChars(originalQuery, executedQuery);
+        let diffText = "";
+        changes.forEach((part) => {
+          if(part.added) {
+            diffText += `[Added: ${part.value}]`;
+          } else if (part.removed) {
+            diffText += `[Removed: ${part.value}]`;
+          } else {
+            diffText += part.value;
+          }
+        });
+        differenceContext = `${diffText}`;
+      }
+    }
 
 
     // Create a refinement context (Original structure, but incorporating new history)
@@ -491,8 +526,12 @@ ${userMembership?.role === 'VIEWER' ? viewerSecurityContext : ''}
 USER'S REFINEMENT REQUEST:
 ${refinementRequest}
 
+CONTEXT ABOUT USER MODIFICATIONS TO PREVIOUS QUERY (if applicable):
+${differenceContext || 'No prior modifications context available.'}
+
 REFINED QUERY OUTPUT (Return ONLY the SQL):`; 
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    console.log(`Complete context :- ${refinementContext}`);
     const result = await model.generateContent([
       { text: refinementContext },
       { text: refinementRequest }
