@@ -33,7 +33,7 @@ const pg_1 = require("pg");
 function executeQuery(req, res) {
     return __awaiter(this, void 0, void 0, function* () {
         var _a, e_1, _b, _c;
-        var _d;
+        var _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
         const startTime = Date.now();
         try {
             const { query, connectionId } = req.body;
@@ -83,6 +83,17 @@ function executeQuery(req, res) {
             let queryResult;
             let error = null;
             let resultSize = 0;
+            let elapsedTime;
+            let analysisTime;
+            let planningTime;
+            let cpuTime;
+            let wallTime;
+            //    let processedRows: number | undefined;
+            //    let processedBytes: number | undefined;
+            let peakMemoryBytes;
+            //    let physicalInputBytes: number | undefined;
+            let queuedTime;
+            let finishingTime;
             // Execute query based on connection type
             try {
                 if (connection.source === 'trino') {
@@ -104,9 +115,9 @@ function executeQuery(req, res) {
                     const rows = [];
                     if (result && typeof result[Symbol.asyncIterator] === 'function') {
                         try {
-                            for (var _e = true, result_1 = __asyncValues(result), result_1_1; result_1_1 = yield result_1.next(), _a = result_1_1.done, !_a; _e = true) {
+                            for (var _q = true, result_1 = __asyncValues(result), result_1_1; result_1_1 = yield result_1.next(), _a = result_1_1.done, !_a; _q = true) {
                                 _c = result_1_1.value;
-                                _e = false;
+                                _q = false;
                                 const row = _c;
                                 rows.push(row);
                             }
@@ -114,18 +125,31 @@ function executeQuery(req, res) {
                         catch (e_1_1) { e_1 = { error: e_1_1 }; }
                         finally {
                             try {
-                                if (!_e && !_a && (_b = result_1.return)) yield _b.call(result_1);
+                                if (!_q && !_a && (_b = result_1.return)) yield _b.call(result_1);
                             }
                             finally { if (e_1) throw e_1.error; }
                         }
                     }
                     queryResult = { rows };
+                    console.log(`Query Result: 97 - ${queryResult}`);
                     if (rows) {
                         console.error(`Executed!!!`);
                     }
                     resultSize = rows.length;
                     if (resultSize)
                         console.error(`resultSize :- ${resultSize}`);
+                    if (resultSize) {
+                        cpuTime = (_f = (_e = queryResult.rows[0]) === null || _e === void 0 ? void 0 : _e.stats) === null || _f === void 0 ? void 0 : _f.cpuTimeMillis;
+                        //        physicalInputBytes = queryResult.rows[0]?.stats?.physicalInputBytes;
+                        elapsedTime = (_h = (_g = queryResult.rows[0]) === null || _g === void 0 ? void 0 : _g.stats) === null || _h === void 0 ? void 0 : _h.elapsedTimeMillis;
+                        //analysisTime = queryResult.rows[0].stats?.analysisTime;
+                        wallTime = (_k = (_j = queryResult.rows[0]) === null || _j === void 0 ? void 0 : _j.stats) === null || _k === void 0 ? void 0 : _k.wallTimeMillis;
+                        peakMemoryBytes = (_m = (_l = queryResult.rows[0]) === null || _l === void 0 ? void 0 : _l.stats) === null || _m === void 0 ? void 0 : _m.peakMemoryBytes;
+                        //          processedRows = queryResult.rows[0]?.stats?.processedRows;
+                        //          processedBytes = queryResult.rows[0]?.stats?.processedBytes;
+                        queuedTime = (_p = (_o = queryResult.rows[0]) === null || _o === void 0 ? void 0 : _o.stats) === null || _p === void 0 ? void 0 : _p.queuedTimeMillis;
+                        //finishingTime = queryResult.rows[0]?.stats?.finishingTime;
+                    }
                 }
                 else if (connection.source === 'postgres' || connection.source === 'neon') {
                     const auth = connection.auth;
@@ -180,6 +204,13 @@ function executeQuery(req, res) {
                     projectId: connection.projectId,
                     connectionId,
                     status: error ? 'ERROR' : 'SUCCESS',
+                    cpuTime,
+                    //        physicalInputBytes,
+                    elapsedTime,
+                    wallTime,
+                    //       processedRows,
+                    //      processedBytes,
+                    queuedTime,
                     duration,
                     error: error,
                     resultSize
@@ -287,6 +318,7 @@ function getQueryHistory(req, res) {
         try {
             const { projectId } = req.params;
             const userId = (_a = req.users) === null || _a === void 0 ? void 0 : _a.id;
+            console.log(`Inside getQueryHistory`);
             if (!userId) {
                 res.status(401).json({ message: "Unauthorized" });
                 return;
@@ -333,6 +365,8 @@ function getQueryHistory(req, res) {
                 orderBy: { executedAt: 'desc' },
                 take: 100 // Limit to recent queries
             });
+            //console.log(`executedQueries :- ${executedQueries}`);
+            // Convert BigInt values to strings before sending
             res.status(200).json({
                 success: true,
                 executedQueries

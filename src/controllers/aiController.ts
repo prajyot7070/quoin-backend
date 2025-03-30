@@ -440,11 +440,11 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
           query: true, // Include the query itself
           status: true, // Include the status
           cpuTime: true,
-          physicalInputBytes: true,
+       //   physicalInputBytes: true,
           elapsedTime: true,
           wallTime: true,
-          processedRows: true,
-          processedBytes: true,
+      //    processedRows: true,
+    //      processedBytes: true,
           queuedTime: true,
           feedbacks: {
             orderBy: { createdAt: 'desc' }
@@ -464,9 +464,9 @@ export async function refineQuery(req: Request, res: Response): Promise<void> {
                  `CPU Time: ${entry.cpuTime} s\n` +
                  `Elapsed Time: ${entry.elapsedTime} s\n` +
                  `Wall Time: ${entry.wallTime} s\n` +
-                 `Processed Rows: ${entry.processedRows}\n` +
-                 `Processed Bytes: ${entry.processedBytes}\n` +
-                 `Physical Input Bytes: ${entry.physicalInputBytes}\n` +
+//                 `Processed Rows: ${entry.processedRows}\n` +
+//                 `Processed Bytes: ${entry.processedBytes}\n` +
+//                 `Physical Input Bytes: ${entry.physicalInputBytes}\n` +
                  `Queued Time: ${entry.queuedTime} s\n` +
                  `${feedbackStrings ? `Feedback:\n${feedbackStrings}` : 'No Feedback.'}`;
         }).join('\n\n');
